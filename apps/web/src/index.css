@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: system-ui, 'Microsoft YaHei', sans-serif;
+  background: #f8fafc;
+}
+
+input, textarea, select, button {
+  font: inherit;
+}
+
+label {
+  display: grid;
+  gap: 4px;
+}
+
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='url'],
+textarea {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}

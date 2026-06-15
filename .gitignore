@@ -1,0 +1,16 @@
+node_modules
+dist
+build
+.turbo
+.env
+.env.local
+uploads/*
+!uploads/.gitkeep
+*.log
+.DS_Store
+coverage
+playwright-report
+test-results
+apps/server/prisma/*.db
+apps/server/prisma/*.db-journal
+apps/desktop/src-tauri/target

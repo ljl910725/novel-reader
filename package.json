@@ -1,0 +1,25 @@
+{
+  "name": "novel-reader",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "test:e2e": "pnpm --filter @novel-reader/web test:e2e",
+    "test:clients": "pnpm --filter @novel-reader/web test && pnpm --filter @novel-reader/mobile test && pnpm --filter @novel-reader/desktop test && pnpm --filter @novel-reader/web test:e2e && pnpm --filter @novel-reader/desktop test:e2e",
+    "test:clients:api": "pnpm --filter @novel-reader/mobile test:api",
+    "lint": "turbo lint",
+    "db:generate": "pnpm --filter @novel-reader/server exec prisma generate",
+    "db:migrate": "pnpm --filter @novel-reader/server exec prisma migrate dev",
+    "db:seed": "pnpm --filter @novel-reader/server exec prisma db seed",
+    "db:push": "pnpm --filter @novel-reader/server exec prisma db push"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

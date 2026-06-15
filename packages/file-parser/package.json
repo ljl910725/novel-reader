@@ -1,0 +1,37 @@
+{
+  "name": "@novel-reader/file-parser",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./txt": {
+      "types": "./dist/txt-parser.d.ts",
+      "require": "./dist/txt-parser.js",
+      "import": "./dist/txt-parser.js",
+      "default": "./dist/txt-parser.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@novel-reader/shared": "workspace:*",
+    "epub2": "^3.0.2",
+    "iconv-lite": "^0.6.3",
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

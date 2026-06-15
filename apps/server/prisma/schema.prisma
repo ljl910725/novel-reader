@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum BookType {
+  SOURCE
+  LOCAL_TXT
+  LOCAL_EPUB
+  SERVER_TXT
+  SERVER_EPUB
+}
+
+enum FileFormat {
+  TXT
+  EPUB
+}
+
+enum ParseStatus {
+  PENDING
+  PARSING
+  DONE
+  FAILED
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  passwordHash    String
+  nickname        String
+  role            UserRole         @default(USER)
+  permissions     Json?
+  onboardingDone  Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  sources         BookSource[]
+  bookshelf       BookshelfItem[]
+  progress        ReadingProgress[]
+  bookmarks       Bookmark[]
+  settings        UserSettings?
+  uploadedFiles   UploadedFile[]
+}
+
+model BookSource {
+  id           String   @id @default(uuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  legadoConfig Json
+  enabled      Boolean  @default(true)
+  group        String   @default("默认")
+  isStore      Boolean  @default(false)
+  storeStatus  String?
+  lastChecked  DateTime?
+  createdAt    DateTime @default(now())
+  books        Book[]
+}
+
+model Book {
+  id              String          @id @default(uuid())
+  title           String
+  author          String          @default("未知")
+  intro           String?
+  coverUrl        String?
+  bookType        BookType        @default(SOURCE)
+  sourceBookUrl   String?
+  sourceId        String?
+  source          BookSource?     @relation(fields: [sourceId], references: [id])
+  uploadedFileId  String?         @unique
+  uploadedFile    UploadedFile?   @relation(fields: [uploadedFileId], references: [id])
+  localFilePath   String?
+  fileHash        String?
+  userId          String?
+  chapters        Chapter[]
+  bookshelf       BookshelfItem[]
+  progress        ReadingProgress[]
+  bookmarks       Bookmark[]
+  createdAt       DateTime        @default(now())
+}
+
+model Chapter {
+  id                String   @id @default(uuid())
+  bookId            String
+  book              Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  title             String
+  sourceChapterUrl  String?
+  index             Int
+  cachedContent     String?  @db.Text
+  progress          ReadingProgress[]
+  bookmarks         Bookmark[]
+}
+
+model BookshelfItem {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  group     String   @default("默认")
+  pinned    Boolean  @default(false)
+  tracking  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, bookId])
+}
+
+model ReadingProgress {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId       String
+  book         Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  chapterId    String?
+  chapter      Chapter? @relation(fields: [chapterId], references: [id])
+  chapterIndex Int      @default(0)
+  scrollOffset Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, bookId])
+}
+
+model Bookmark {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId     String
+  book       Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  chapterId  String?
+  chapter    Chapter? @relation(fields: [chapterId], references: [id])
+  note       String?
+  offset     Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+model UserSettings {
+  id             String @id @default(uuid())
+  userId         String @unique
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readerTheme    Json
+  desktopWindow  Json
+  mobileSettings Json?
+}
+
+model SystemConfig {
+  id               String   @id @default("default")
+  guestPermissions Json
+  updatedAt        DateTime @updatedAt
+}
+
+model UploadedFile {
+  id           String      @id @default(uuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename     String
+  format       FileFormat
+  storagePath  String
+  fileHash     String
+  fileSize     BigInt
+  parseStatus  ParseStatus @default(PENDING)
+  parseError   String?
+  book         Book?
+  createdAt    DateTime    @default(now())
+}

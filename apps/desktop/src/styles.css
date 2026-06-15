@@ -1,0 +1,32 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, 'Microsoft YaHei', sans-serif; background: transparent; }
+.app-shell {
+  background: rgba(26, 26, 46, 0.92);
+  color: #e0e0e0;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.drag-bar {
+  -webkit-app-region: drag;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  font-size: 13px;
+}
+.drag-bar button { -webkit-app-region: no-drag; }
+.content { flex: 1; overflow: auto; padding: 12px; }
+button {
+  background: rgba(79, 70, 229, 0.8);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+input, select { padding: 6px 8px; border-radius: 6px; border: 1px solid #444; background: #2a2a3e; color: #eee; }
+label { display: grid; gap: 4px; font-size: 13px; margin-bottom: 8px; }
