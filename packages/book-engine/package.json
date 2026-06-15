@@ -10,6 +10,12 @@
       "require": "./dist/index.js",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./demo": {
+      "types": "./dist/mock-source.d.ts",
+      "require": "./dist/mock-source.js",
+      "import": "./dist/mock-source.js",
+      "default": "./dist/mock-source.js"
     }
   },
   "scripts": {

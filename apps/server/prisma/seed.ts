@@ -1,7 +1,11 @@
 import { PrismaClient } from '@prisma/client';
-import { DEMO_STORE_SOURCES } from '@novel-reader/book-engine';
-import { DEFAULT_GUEST_PERMISSIONS, DEFAULT_DESKTOP_WINDOW, DEFAULT_READER_THEME } from '@novel-reader/shared';
 import * as bcrypt from 'bcrypt';
+import {
+  DEFAULT_GUEST_PERMISSIONS,
+  DEFAULT_DESKTOP_WINDOW,
+  DEFAULT_READER_THEME,
+  DEMO_STORE_SOURCES,
+} from './seed-data';
 
 const prisma = new PrismaClient();
 
@@ -51,7 +55,7 @@ async function main() {
       await prisma.bookSource.create({
         data: {
           name: config.bookSourceName,
-          legadoConfig: { ...config, bookSourceComment: description } as object,
+          legadoConfig: { ...config, bookSourceComment: description },
           isStore: true,
           storeStatus: 'healthy',
           lastChecked: new Date(),

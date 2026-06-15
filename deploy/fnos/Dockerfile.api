@@ -7,9 +7,11 @@ COPY apps/server ./apps/server
 COPY packages ./packages
 RUN pnpm install --frozen-lockfile
 WORKDIR /app/apps/server
-RUN npx prisma generate
+RUN pnpm exec prisma generate
 WORKDIR /app
 RUN pnpm --filter @novel-reader/server... build
+WORKDIR /app/apps/server
+RUN pnpm exec tsc -p tsconfig.seed.json
 
 FROM node:20-bookworm-slim AS runner
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
@@ -20,6 +22,12 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/server/package.json ./apps/server/
 COPY packages ./packages
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/server/node_modules ./apps/server/node_modules
+COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=builder /app/packages/book-engine/node_modules ./packages/book-engine/node_modules
+COPY --from=builder /app/packages/file-parser/node_modules ./packages/file-parser/node_modules
+COPY --from=builder /app/packages/source-generator/node_modules ./packages/source-generator/node_modules
+COPY --from=builder /app/apps/server/dist-seed ./apps/server/dist-seed
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
@@ -27,6 +35,7 @@ COPY --from=builder /app/packages/book-engine/dist ./packages/book-engine/dist
 COPY --from=builder /app/packages/file-parser/dist ./packages/file-parser/dist
 COPY --from=builder /app/packages/source-generator/dist ./packages/source-generator/dist
 RUN mkdir -p /app/uploads
+ENV PATH="/app/node_modules/.pnpm/node_modules/.bin:${PATH}"
 WORKDIR /app/apps/server
 EXPOSE 3001
-CMD ["sh", "-c", "npx prisma db push && npx prisma db seed && node dist/main.js"]
+CMD ["sh", "-c", "prisma db push --skip-generate && node dist-seed/prisma/seed.js && node dist/main.js"]
