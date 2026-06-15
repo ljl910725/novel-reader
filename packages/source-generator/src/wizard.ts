@@ -54,7 +54,7 @@ export async function analyzeSearchPage(
 
   const preview: unknown[] = [];
   if (rules.bookList) {
-    $(rules.bookList).slice(0, 3).each((_, el) => {
+    $(rules.bookList).slice(0, 3).each((_i: number, el: any) => {
       const item = $(el);
       preview.push({
         name: rules.name ? item.find(rules.name.split('@')[0]).text().trim() : '',
@@ -76,7 +76,7 @@ export async function analyzeTocPage(tocUrl: string): Promise<WizardAnalyzeResul
   const rules = recommendChapterRules($);
   const preview: unknown[] = [];
   if (rules.chapterList) {
-    $(rules.chapterList).slice(0, 5).each((_, el) => {
+    $(rules.chapterList).slice(0, 5).each((_i: number, el: any) => {
       const item = $(el);
       preview.push({
         title: rules.chapterName ? item.find(rules.chapterName.split('@')[0]).text().trim() : item.text().trim(),

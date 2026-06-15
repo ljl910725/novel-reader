@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "@novel-reader/book-engine": "workspace:*",
-    "@novel-reader/shared": "workspace:*"
+    "@novel-reader/shared": "workspace:*",
+    "cheerio": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

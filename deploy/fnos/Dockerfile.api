@@ -6,9 +6,10 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json turbo.js
 COPY apps/server ./apps/server
 COPY packages ./packages
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @novel-reader/server... build
 WORKDIR /app/apps/server
 RUN npx prisma generate
+WORKDIR /app
+RUN pnpm --filter @novel-reader/server... build
 
 FROM node:20-bookworm-slim AS runner
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
