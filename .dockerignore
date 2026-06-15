@@ -1,0 +1,12 @@
+node_modules
+dist
+.turbo
+.git
+.env
+.env.local
+uploads/*
+!uploads/.gitkeep
+**/test-results
+**/playwright-report
+apps/desktop/src-tauri/target
+apps/mobile/.expo
