@@ -13,6 +13,7 @@ export default defineConfig({
       '@novel-reader/shared': path.resolve(packages, 'shared/src/index.ts'),
       '@novel-reader/file-parser/txt': path.resolve(packages, 'file-parser/src/txt-parser.ts'),
       '@novel-reader/file-parser': path.resolve(packages, 'file-parser/src/index.ts'),
+      '@novel-reader/ui': path.resolve(packages, 'ui/src/index.ts'),
     },
   },
   server: {

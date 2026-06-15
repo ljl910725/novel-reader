@@ -86,9 +86,9 @@ export function SourcesPage({ user, canImport }: Props) {
   return (
     <div className="grid gap-6">
       <h1 className="text-2xl font-bold">我的书源</h1>
-      <Text style={styles.banner}>
+      <p className="text-sm text-slate-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
         书源保存在本机浏览器（localStorage）。Android APK 使用手机本地存储，互不共享。
-      </Text>
+      </p>
       {msg && <p className="text-indigo-600">{msg}</p>}
 
       {canImport && (

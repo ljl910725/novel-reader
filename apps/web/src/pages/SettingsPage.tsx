@@ -1,4 +1,8 @@
-export function SettingsPage() {
+interface Props {
+  user: { id: string } | null;
+}
+
+export function SettingsPage(_props: Props) {
   return (
     <div className="max-w-2xl">
       <h1 className="text-2xl font-bold mb-4">设置与教程</h1>
