@@ -12,6 +12,37 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { PrismaService } from '../prisma/prisma.service';
 
+function serializeUploadedFile(
+  file: {
+    id: string;
+    filename: string;
+    format: string;
+    fileSize: bigint;
+    parseStatus: string;
+    parseError: string | null;
+    createdAt: Date;
+    book?: { id: string; title: string; author: string; bookType: string } | null;
+  },
+) {
+  return {
+    id: file.id,
+    filename: file.filename,
+    format: file.format,
+    fileSize: Number(file.fileSize),
+    parseStatus: file.parseStatus,
+    parseError: file.parseError,
+    createdAt: file.createdAt.toISOString(),
+    book: file.book
+      ? {
+          id: file.book.id,
+          title: file.book.title,
+          author: file.book.author,
+          bookType: file.book.bookType,
+        }
+      : null,
+  };
+}
+
 @Injectable()
 export class FilesService {
   private uploadDir: string;
@@ -36,7 +67,7 @@ export class FilesService {
       where: { userId, fileHash },
     });
     if (dup) {
-      throw new BadRequestException('该文件已存在，无需重复上传');
+      return { fileId: dup.id, parseStatus: dup.parseStatus, duplicate: true };
     }
 
     const dir = join(this.uploadDir, userId);
@@ -121,11 +152,12 @@ export class FilesService {
   }
 
   async list(userId: string) {
-    return this.prisma.uploadedFile.findMany({
+    const rows = await this.prisma.uploadedFile.findMany({
       where: { userId },
       include: { book: true },
       orderBy: { createdAt: 'desc' },
     });
+    return rows.map(serializeUploadedFile);
   }
 
   async status(userId: string, fileId: string) {
@@ -134,7 +166,7 @@ export class FilesService {
       include: { book: true },
     });
     if (!file) throw new NotFoundException('文件不存在');
-    return file;
+    return serializeUploadedFile(file);
   }
 
   async remove(userId: string, fileId: string) {

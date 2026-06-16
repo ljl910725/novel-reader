@@ -1,0 +1,19 @@
+name: Deploy FNOS
+
+on:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+concurrency:
+  group: fnos-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, fnos, novel-reader]
+    steps:
+      - name: Pull and redeploy
+        run: bash "$DEPLOY_ROOT/deploy/fnos/deploy.sh"
+        env:
+          DEPLOY_ROOT: ${{ vars.DEPLOY_ROOT }}

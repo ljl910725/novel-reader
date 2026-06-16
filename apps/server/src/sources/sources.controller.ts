@@ -34,6 +34,18 @@ export class SourcesController {
     return this.sources.update(userId, id, body as Parameters<SourcesService['update']>[2]);
   }
 
+  @Post('test-batch')
+  @RequirePermission('searchBooks')
+  testBatch(@CurrentUser('sub') userId: string, @Body() body: { ids: string[]; q?: string }) {
+    return this.sources.testBatch(userId, body.ids ?? [], body.q);
+  }
+
+  @Delete('batch')
+  @RequirePermission('importSources')
+  removeBatch(@CurrentUser('sub') userId: string, @Body() body: { ids: string[] }) {
+    return this.sources.removeBatch(userId, body.ids ?? []);
+  }
+
   @Delete(':id')
   @RequirePermission('importSources')
   remove(@CurrentUser('sub') userId: string, @Param('id') id: string) {

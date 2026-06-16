@@ -11,17 +11,22 @@ export function ShelfPage({ user }: Props) {
   const [items, setItems] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
-    if (user) {
-      api.shelf().then(setItems);
-    } else {
-      setItems(
-        guestStorage.getShelf().map((s) => ({
-          id: s.id,
-          book: { id: s.id, title: s.title, author: s.author, bookType: 'GUEST_ONLINE' },
-          isGuest: true,
-        })),
-      );
-    }
+    const load = () => {
+      if (user) {
+        api.shelf().then(setItems).catch(() => setItems([]));
+      } else {
+        setItems(
+          guestStorage.getShelf().map((s) => ({
+            id: s.id,
+            book: { id: s.id, title: s.title, author: s.author, bookType: 'GUEST_ONLINE' },
+            isGuest: true,
+          })),
+        );
+      }
+    };
+    load();
+    window.addEventListener('focus', load);
+    return () => window.removeEventListener('focus', load);
   }, [user]);
 
   return (
@@ -47,7 +52,13 @@ export function ShelfPage({ user }: Props) {
           );
         })}
         {items.length === 0 && (
-          <p className="text-slate-500 col-span-full">书架为空，去搜索或上传书籍吧</p>
+          <p className="text-slate-500 col-span-full">
+            书架为空，去搜索或
+            <Link to="/upload" className="text-indigo-600 mx-1">
+              上传书籍
+            </Link>
+            吧
+          </p>
         )}
       </div>
     </div>

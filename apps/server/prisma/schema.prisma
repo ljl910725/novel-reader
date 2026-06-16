@@ -38,6 +38,7 @@ model User {
   passwordHash    String
   nickname        String
   role            UserRole         @default(USER)
+  emailVerified   Boolean          @default(false)
   permissions     Json?
   onboardingDone  Boolean          @default(false)
   createdAt       DateTime         @default(now())
@@ -60,6 +61,7 @@ model BookSource {
   group        String   @default("默认")
   isStore      Boolean  @default(false)
   storeStatus  String?
+  healthStatus String?
   lastChecked  DateTime?
   createdAt    DateTime @default(now())
   books        Book[]

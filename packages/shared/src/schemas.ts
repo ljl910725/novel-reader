@@ -4,6 +4,42 @@ export const registerSchema = z.object({
   email: z.string().email('请输入有效邮箱'),
   password: z.string().min(6, '密码至少 6 位'),
   nickname: z.string().min(1, '请输入昵称').max(32),
+  code: z.string().length(6, '请输入 6 位验证码'),
+});
+
+export const sendEmailCodeSchema = z.object({
+  email: z.string().email('请输入有效邮箱'),
+});
+
+export const resetPasswordSchema = z.object({
+  email: z.string().email('请输入有效邮箱'),
+  code: z.string().length(6, '请输入 6 位验证码'),
+  newPassword: z.string().min(6, '密码至少 6 位'),
+});
+
+export const updateProfileSchema = z.object({
+  nickname: z.string().min(1, '请输入昵称').max(32),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, '请输入当前密码'),
+  newPassword: z.string().min(6, '新密码至少 6 位'),
+});
+
+export const changeEmailSchema = z.object({
+  newEmail: z.string().email('请输入有效邮箱'),
+  code: z.string().length(6, '请输入 6 位验证码'),
+});
+
+export const adminResetPasswordSchema = z.object({
+  newPassword: z.string().min(6, '密码至少 6 位'),
+});
+
+export const adminUpdateUserSchema = z.object({
+  role: z.enum(['USER', 'ADMIN']).optional(),
+  nickname: z.string().min(1).max(32).optional(),
+  permissions: z.record(z.boolean()).optional(),
+  password: z.string().min(6).optional(),
 });
 
 export const loginSchema = z.object({
@@ -53,7 +89,7 @@ export const legadoSourceSchema = z.object({
     imageDecode: z.string().optional(),
     webJs: z.string().optional(),
   }),
-  ruleExplore: z.record(z.string()).optional(),
+  ruleExplore: z.union([z.record(z.string()), z.array(z.unknown())]).optional(),
   ruleReview: z.record(z.string()).optional(),
   bookSourceComment: z.string().optional(),
   variableComment: z.string().optional(),

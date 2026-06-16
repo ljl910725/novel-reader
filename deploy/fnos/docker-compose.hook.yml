@@ -1,0 +1,15 @@
+services:
+  deploy-hook:
+    build:
+      context: .
+      dockerfile: Dockerfile.hook
+    container_name: novel-deploy-hook
+    restart: unless-stopped
+    ports:
+      - '${DEPLOY_HOOK_PORT:-9000}:9000'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../..:/repo
+      - ./webhook/hooks.json:/etc/webhook/hooks.json:ro
+    environment:
+      DEPLOY_ROOT: /repo

@@ -12,6 +12,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { RequirePermission } from '../common/decorators/require-permission.decorator';
+import { RequireAnyPermission } from '../common/decorators/require-any-permission.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionGuard } from '../common/guards/permission.guard';
@@ -33,12 +34,13 @@ export class FilesController {
   }
 
   @Get()
-  @RequirePermission('cloudSync')
+  @RequireAnyPermission('cloudUpload', 'cloudSync')
   list(@CurrentUser('sub') userId: string) {
     return this.files.list(userId);
   }
 
   @Get(':id/status')
+  @RequireAnyPermission('cloudUpload', 'cloudSync')
   status(@CurrentUser('sub') userId: string, @Param('id') id: string) {
     return this.files.status(userId, id);
   }

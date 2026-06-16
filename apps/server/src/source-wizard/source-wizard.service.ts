@@ -47,7 +47,7 @@ export class SourceWizardService {
       payload.ruleToc,
       payload.ruleContent,
     );
-    const [created] = await this.sources.importSources(userId, [source]);
-    return created;
+    const { created } = await this.sources.importSources(userId, [source]);
+    return created[0];
   }
 }

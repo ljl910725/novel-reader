@@ -11,6 +11,8 @@ export interface GuestSource {
   group: string;
   enabled: boolean;
   legadoConfig: LegadoBookSource;
+  healthStatus?: 'healthy' | 'offline';
+  lastChecked?: string;
 }
 
 export interface GuestShelfItem {
@@ -70,6 +72,19 @@ export const guestStorage = {
 
   getSourceById(id: string) {
     return guestStorage.getSources().find((s) => s.id === id);
+  },
+
+  removeSources(ids: string[]) {
+    const idSet = new Set(ids);
+    guestStorage.saveSources(guestStorage.getSources().filter((s) => !idSet.has(s.id)));
+  },
+
+  updateHealth(id: string, healthStatus: 'healthy' | 'offline') {
+    guestStorage.saveSources(
+      guestStorage.getSources().map((s) =>
+        s.id === id ? { ...s, healthStatus, lastChecked: new Date().toISOString() } : s,
+      ),
+    );
   },
 
   getShelf(): GuestShelfItem[] {

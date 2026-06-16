@@ -7,6 +7,7 @@ type AdminUser = {
   email: string;
   nickname: string;
   role: string;
+  emailVerified?: boolean;
   effectivePermissions: UserPermissions;
 };
 
@@ -14,11 +15,16 @@ export function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [guestPerms, setGuestPerms] = useState<UserPermissions | null>(null);
   const [msg, setMsg] = useState('');
+  const [passwordDraft, setPasswordDraft] = useState<Record<string, string>>({});
+  const [nicknameDraft, setNicknameDraft] = useState<Record<string, string>>({});
 
   const load = async () => {
     const [u, g] = await Promise.all([api.adminUsers(), api.adminGuestPermissions()]);
     setUsers(u as AdminUser[]);
     setGuestPerms(g);
+    const nicknames: Record<string, string> = {};
+    for (const user of u as AdminUser[]) nicknames[user.id] = user.nickname;
+    setNicknameDraft(nicknames);
   };
 
   useEffect(() => {
@@ -41,6 +47,26 @@ export function AdminPage() {
     await api.adminUpdateUser(userId, { role });
     setMsg('用户角色已更新');
     load();
+  };
+
+  const saveNickname = async (userId: string) => {
+    const nickname = nicknameDraft[userId]?.trim();
+    if (!nickname) return;
+    await api.adminUpdateUser(userId, { nickname });
+    setMsg('昵称已更新');
+    load();
+  };
+
+  const resetPassword = async (userId: string) => {
+    const newPassword = passwordDraft[userId]?.trim();
+    if (!newPassword || newPassword.length < 6) {
+      setMsg('请输入至少 6 位新密码');
+      return;
+    }
+    if (!window.confirm('确定重置该用户密码？')) return;
+    await api.adminResetUserPassword(userId, newPassword);
+    setPasswordDraft((prev) => ({ ...prev, [userId]: '' }));
+    setMsg('密码已重置');
   };
 
   return (
@@ -72,7 +98,7 @@ export function AdminPage() {
 
       <section className="bg-white border rounded-xl p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="font-semibold text-lg">用户权限管理</h2>
+          <h2 className="font-semibold text-lg">用户管理（{users.length}）</h2>
           <button
             type="button"
             onClick={() => api.adminSeedStore().then(() => setMsg('书源商店种子数据已刷新'))}
@@ -86,8 +112,20 @@ export function AdminPage() {
             <div key={u.id} className="border rounded-lg p-4">
               <div className="flex flex-wrap justify-between gap-2 mb-3">
                 <div>
-                  <div className="font-medium">{u.nickname}</div>
-                  <div className="text-sm text-slate-500">{u.email}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      value={nicknameDraft[u.id] ?? u.nickname}
+                      onChange={(e) => setNicknameDraft({ ...nicknameDraft, [u.id]: e.target.value })}
+                      className="font-medium border rounded px-2 py-1"
+                    />
+                    <button type="button" onClick={() => saveNickname(u.id)} className="text-xs border px-2 py-1 rounded">
+                      保存昵称
+                    </button>
+                  </div>
+                  <div className="text-sm text-slate-500 mt-1">
+                    {u.email}
+                    {u.emailVerified === false && <span className="text-amber-600 ml-2">未验证</span>}
+                  </div>
                 </div>
                 <select
                   value={u.role}
@@ -98,6 +136,20 @@ export function AdminPage() {
                   <option value="ADMIN">管理员</option>
                 </select>
               </div>
+
+              <div className="flex flex-wrap gap-2 items-center mb-3">
+                <input
+                  type="password"
+                  placeholder="设置新密码（至少 6 位）"
+                  value={passwordDraft[u.id] ?? ''}
+                  onChange={(e) => setPasswordDraft({ ...passwordDraft, [u.id]: e.target.value })}
+                  className="border rounded px-2 py-1 text-sm flex-1 min-w-[200px]"
+                />
+                <button type="button" onClick={() => resetPassword(u.id)} className="text-sm border px-3 py-1 rounded-lg text-red-600">
+                  重置密码
+                </button>
+              </div>
+
               {u.role !== 'ADMIN' && (
                 <div className="grid sm:grid-cols-2 gap-2">
                   {(Object.keys(PERMISSION_LABELS) as Array<keyof UserPermissions>)

@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { DEMO_STORE_SOURCES } from '@novel-reader/book-engine';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { PermissionsService } from '../permissions/permissions.service';
 
@@ -17,8 +18,10 @@ export class AdminService {
         email: true,
         nickname: true,
         role: true,
+        emailVerified: true,
         permissions: true,
         createdAt: true,
+        updatedAt: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -42,23 +45,46 @@ export class AdminService {
     return this.permissions.setGuestPermissions(perms);
   }
 
-  async updateUser(userId: string, data: { role?: 'USER' | 'ADMIN'; permissions?: unknown }) {
-    const update: { role?: 'USER' | 'ADMIN'; permissions?: object } = {};
+  async updateUser(
+    userId: string,
+    data: { role?: 'USER' | 'ADMIN'; nickname?: string; permissions?: unknown; password?: string },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('用户不存在');
+
+    const update: { role?: 'USER' | 'ADMIN'; nickname?: string; passwordHash?: string } = {};
     if (data.role) update.role = data.role;
+    if (data.nickname) update.nickname = data.nickname;
+    if (data.password) update.passwordHash = await bcrypt.hash(data.password, 10);
     if (data.permissions !== undefined) {
       await this.permissions.setUserPermissions(userId, data.permissions);
     }
     if (Object.keys(update).length > 0) {
       await this.prisma.user.update({ where: { id: userId }, data: update });
     }
-    const user = await this.prisma.user.findUnique({
+    const updated = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, nickname: true, role: true, permissions: true },
+      select: {
+        id: true,
+        email: true,
+        nickname: true,
+        role: true,
+        emailVerified: true,
+        permissions: true,
+      },
     });
     return {
-      ...user,
+      ...updated,
       effectivePermissions: await this.permissions.getUserPermissions(userId),
     };
+  }
+
+  async resetUserPassword(userId: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('用户不存在');
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    return { ok: true, message: '密码已重置' };
   }
 
   async seedStore() {

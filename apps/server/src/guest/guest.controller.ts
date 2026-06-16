@@ -37,4 +37,10 @@ export class GuestController {
   validate(@Body() body: { data: unknown }) {
     return this.guest.validateSources(body.data);
   }
+
+  @Post('sources/test')
+  @RequirePermission('searchBooks')
+  testSources(@Body() body: { items: Array<{ id: string; source: unknown }>; q?: string }) {
+    return this.guest.testSources(body.items ?? [], body.q);
+  }
 }

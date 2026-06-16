@@ -18,6 +18,7 @@ async function main() {
       email: 'demo@novel.local',
       passwordHash,
       nickname: '演示用户',
+      emailVerified: true,
       settings: {
         create: {
           readerTheme: DEFAULT_READER_THEME,
@@ -36,6 +37,7 @@ async function main() {
       passwordHash: adminHash,
       nickname: '管理员',
       role: 'ADMIN',
+      emailVerified: true,
       settings: {
         create: {
           readerTheme: DEFAULT_READER_THEME,

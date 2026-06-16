@@ -1,0 +1,10 @@
+FROM docker:27-cli
+RUN apk add --no-cache bash git wget
+ARG WEBHOOK_VERSION=2.8.1
+RUN wget -qO /usr/local/bin/webhook \
+    "https://github.com/adnanh/webhook/releases/download/${WEBHOOK_VERSION}/webhook-linux-amd64" \
+  && chmod +x /usr/local/bin/webhook
+COPY deploy.sh /scripts/deploy.sh
+RUN chmod +x /scripts/deploy.sh
+EXPOSE 9000
+ENTRYPOINT ["webhook", "-hooks", "/etc/webhook/hooks.json", "-verbose", "-port", "9000", "-urlprefix", "/hooks"]

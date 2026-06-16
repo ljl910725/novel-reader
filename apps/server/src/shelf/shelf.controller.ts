@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { RequireAnyPermission } from '../common/decorators/require-any-permission.decorator';
 import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -11,7 +12,7 @@ export class ShelfController {
   constructor(private shelf: ShelfService) {}
 
   @Get()
-  @RequirePermission('cloudSync')
+  @RequireAnyPermission('cloudSync', 'cloudUpload', 'readOnline')
   list(@CurrentUser('sub') userId: string) {
     return this.shelf.list(userId);
   }

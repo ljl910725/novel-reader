@@ -3,6 +3,7 @@ import { Layout } from './components/Layout';
 import { useAuth } from './hooks/useAuth';
 import { usePermissions } from './hooks/usePermissions';
 import { AdminPage } from './pages/AdminPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { GuestReaderPage } from './pages/GuestReaderPage';
 import { LoginPage } from './pages/LoginPage';
 import { ReaderPage } from './pages/ReaderPage';
@@ -44,6 +45,7 @@ function AppRoutes() {
           {user?.role === 'ADMIN' && can('adminPanel') && <Route path="/admin" element={<AdminPage />} />}
           <Route path="/login" element={user ? <Navigate to="/shelf" replace /> : <LoginPage />} />
           <Route path="/register" element={user ? <Navigate to="/shelf" replace /> : <RegisterPage />} />
+          <Route path="/forgot-password" element={user ? <Navigate to="/settings" replace /> : <ForgotPasswordPage />} />
           <Route path="*" element={<Navigate to="/shelf" replace />} />
         </Routes>
       </Layout>

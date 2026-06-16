@@ -14,3 +14,7 @@ test-results
 apps/server/prisma/*.db
 apps/server/prisma/*.db-journal
 apps/desktop/src-tauri/target
+apps/server/dist-seed/
+deploy/fnos/webhook/hooks.json
+deploy/fnos/.webhook-secret
+deploy/fnos/deploy.log

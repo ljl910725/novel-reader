@@ -53,6 +53,8 @@ export function LoginPage() {
         </button>
         <p className="text-center text-sm">
           没有账号？<Link to="/register" className="text-indigo-600">注册</Link>
+          {' · '}
+          <Link to="/forgot-password" className="text-indigo-600">忘记密码</Link>
         </p>
         <p className="text-xs text-slate-500 text-center">演示账号：demo@novel.local / demo123</p>
       </form>

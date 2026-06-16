@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { adminResetPasswordSchema, adminUpdateUserSchema } from '@novel-reader/shared';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminService } from './admin.service';
@@ -29,8 +30,15 @@ export class AdminController {
   }
 
   @Patch('users/:id')
-  updateUser(@Param('id') id: string, @Body() body: { role?: 'USER' | 'ADMIN'; permissions?: unknown }) {
-    return this.admin.updateUser(id, body);
+  updateUser(@Param('id') id: string, @Body() body: unknown) {
+    const parsed = adminUpdateUserSchema.parse(body);
+    return this.admin.updateUser(id, parsed);
+  }
+
+  @Post('users/:id/reset-password')
+  resetPassword(@Param('id') id: string, @Body() body: unknown) {
+    const { newPassword } = adminResetPasswordSchema.parse(body);
+    return this.admin.resetUserPassword(id, newPassword);
   }
 
   @Post('source-store/seed')

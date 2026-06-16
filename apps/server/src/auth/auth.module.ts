@@ -2,7 +2,10 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { EmailModule } from '../email/email.module';
 import { PermissionsModule } from '../permissions/permissions.module';
+import { RedisModule } from '../redis/redis.module';
+import { VerificationModule } from '../verification/verification.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
@@ -10,6 +13,9 @@ import { JwtStrategy } from './jwt.strategy';
 @Module({
   imports: [
     PermissionsModule,
+    RedisModule,
+    EmailModule,
+    VerificationModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],

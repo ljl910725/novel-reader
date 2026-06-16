@@ -16,7 +16,7 @@ export class GuestService {
       parsed.data.map(async (config, index) => {
         const localId = `guest-${index}`;
         try {
-          const engine = new BookEngine(config);
+          const engine = new BookEngine(config as LegadoBookSource);
           const results = await engine.search(q);
           allResults.push(
             ...results.map((r) => ({
@@ -67,8 +67,30 @@ export class GuestService {
     return { valid: true, count: parsed.data.length };
   }
 
+  async testSources(items: Array<{ id: string; source: unknown }>, keyword = '测试') {
+    const results = await Promise.all(
+      items.map(async ({ id, source }) => {
+        try {
+          const config = legadoSourceSchema.parse(source);
+          const engine = new BookEngine(config as LegadoBookSource);
+          const hits = await engine.search(keyword);
+          return { id, name: config.bookSourceName, success: hits.length > 0, count: hits.length };
+        } catch (e) {
+          return {
+            id,
+            name: '未知书源',
+            success: false,
+            error: e instanceof Error ? e.message : '测试失败',
+          };
+        }
+      }),
+    );
+    const passed = results.filter((r) => r.success).length;
+    return { results, passed, failed: results.length - passed };
+  }
+
   private parseSource(source: unknown): LegadoBookSource {
-    return legadoSourceSchema.parse(source);
+    return legadoSourceSchema.parse(source) as LegadoBookSource;
   }
 
   private dedupe(results: SearchResult[]) {
