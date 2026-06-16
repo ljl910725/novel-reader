@@ -9,8 +9,8 @@ import {
   View,
 } from 'react-native';
 import { ChapterContent } from '@/components/ChapterContent';
-import { api } from '@/src/api';
 import { deviceStorage } from '@/src/lib/deviceStorage';
+import { localContent, localToc } from '@/src/lib/localEngine';
 import { colors, layout } from '@/src/theme';
 
 export default function LocalReaderScreen() {
@@ -40,7 +40,7 @@ export default function LocalReaderScreen() {
         return;
       }
       try {
-        const toc = await api.guestToc(source.legadoConfig, shelf.bookUrl);
+        const toc = await localToc(source.legadoConfig, shelf.bookUrl);
         setChapters(toc);
         const p = await deviceStorage.getProgress(shelf.id);
         if (p) setChapterIndex(p.chapterIndex);
@@ -59,7 +59,7 @@ export default function LocalReaderScreen() {
       const source = shelf ? await deviceStorage.getSourceById(shelf.sourceId) : null;
       const ch = chapters[chapterIndex];
       if (!source || !ch.sourceChapterUrl) return;
-      const r = await api.guestContent(source.legadoConfig, ch.sourceChapterUrl);
+      const r = await localContent(source.legadoConfig, ch.sourceChapterUrl);
       setContent(r.content);
       const percent = chapters.length > 0 ? ((chapterIndex + 1) / chapters.length) * 100 : 0;
       await deviceStorage.saveProgress(shelfItemId, chapterIndex, 0, { percent, chapterTitle: ch.title });

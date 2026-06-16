@@ -12,6 +12,8 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, '.'),
       '@novel-reader/shared': path.resolve(__dirname, '../../packages/shared/src/index.ts'),
+      '@novel-reader/book-engine': path.resolve(__dirname, '../../packages/book-engine/src/index.ts'),
+      '@novel-reader/book-engine/demo': path.resolve(__dirname, '../../packages/book-engine/src/mock-source.ts'),
     },
   },
 });

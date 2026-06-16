@@ -72,6 +72,6 @@ describe('deviceStorage', () => {
     });
     await deviceStorage.saveProgress(row.id, 3, 120);
     const progress = await deviceStorage.getProgress(row.id);
-    expect(progress).toEqual({ shelfItemId: row.id, chapterIndex: 3, scrollOffset: 120 });
+    expect(progress).toMatchObject({ shelfItemId: row.id, chapterIndex: 3, scrollOffset: 120 });
   });
 });

@@ -170,6 +170,9 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.title}>服务器地址</Text>
         <Text style={styles.hint}>
+          可选：登录、云端书架、上传等需要服务器。书源搜索与本地阅读无需配置 API。
+        </Text>
+        <Text style={styles.hint}>
           模拟器默认 10.0.2.2；真机填局域网 IP。Docker 部署可用 http://192.168.x.x:8811/api
         </Text>
         <TextInput style={styles.input} value={apiUrl} onChangeText={setApiUrl} autoCapitalize="none" />

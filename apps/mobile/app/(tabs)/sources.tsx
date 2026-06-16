@@ -1,4 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
+import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -14,8 +15,10 @@ import {
 } from 'react-native';
 import type { LegadoBookSource } from '@novel-reader/shared';
 import { parseLegadoImportPayload } from '@novel-reader/shared';
+import { DEMO_MOCK_SOURCE } from '@novel-reader/book-engine/demo';
 import { api } from '@/src/api';
 import { deviceStorage, type DeviceSource } from '@/src/lib/deviceStorage';
+import { localTestSources } from '@/src/lib/localEngine';
 import { colors, layout } from '@/src/theme';
 
 type TestResult = {
@@ -112,7 +115,7 @@ export default function SourcesScreen() {
           return src ? { id, source: src.legadoConfig } : null;
         })
         .filter(Boolean) as Array<{ id: string; source: LegadoBookSource }>;
-      const batch = await api.guestTestSources(items, testKeyword);
+      const batch = await localTestSources(items, testKeyword);
       applyTestResults(batch.results);
       setMsg(`测试完成：可用 ${batch.passed} 个，不可用 ${batch.failed} 个`);
       load();
@@ -128,7 +131,7 @@ export default function SourcesScreen() {
     try {
       const src = sources.find((s) => s.id === id);
       if (!src) return;
-      const batch = await api.guestTestSources([{ id, source: src.legadoConfig }], testKeyword);
+      const batch = await localTestSources([{ id, source: src.legadoConfig }], testKeyword);
       applyTestResults(batch.results);
       const r = batch.results[0];
       setMsg(r?.success ? '测试通过' : `测试失败: ${r?.error ?? ''}`);
@@ -203,6 +206,12 @@ export default function SourcesScreen() {
     }
   };
 
+  const importDemoSource = async () => {
+    await deviceStorage.importSources([DEMO_MOCK_SOURCE]);
+    setMsg(`已导入「${DEMO_MOCK_SOURCE.bookSourceName}」到手机（离线可用）`);
+    load();
+  };
+
   const importFromStore = async () => {
     try {
       const items = await api.sourceStore();
@@ -215,8 +224,31 @@ export default function SourcesScreen() {
       await deviceStorage.importSources([config]);
       setMsg(`已导入「${config.bookSourceName}」到手机`);
       load();
+    } catch {
+      await importDemoSource();
+    }
+  };
+
+  const importFromFile = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/json', 'text/plain'],
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    try {
+      const res = await fetch(result.assets[0].uri);
+      const text = await res.text();
+      const data = JSON.parse(text) as LegadoBookSource | LegadoBookSource[];
+      const { sources: parsed, skipped } = parseLegadoImportPayload(data);
+      if (parsed.length === 0) {
+        setMsg('书源 JSON 格式不正确');
+        return;
+      }
+      await deviceStorage.importSources(parsed as LegadoBookSource[]);
+      setMsg(formatImportMessage(parsed.length, skipped));
+      load();
     } catch (e) {
-      Alert.alert('失败', e instanceof Error ? e.message : '导入失败');
+      Alert.alert('导入失败', e instanceof Error ? e.message : '无法读取文件');
     }
   };
 
@@ -225,7 +257,7 @@ export default function SourcesScreen() {
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <Text style={styles.banner}>
-        书源保存在手机本地（AsyncStorage）。可批量测试连通性并删除不可用书源。
+        书源保存在手机本地，搜索与阅读在设备上执行（无需服务器）。可批量测试并删除不可用书源。
       </Text>
       {msg ? <Text style={styles.msg}>{msg}</Text> : null}
 
@@ -242,6 +274,9 @@ export default function SourcesScreen() {
         <View style={styles.row}>
           <Pressable style={styles.secondaryBtn} onPress={pasteJson}>
             <Text style={styles.secondaryText}>从剪贴板粘贴</Text>
+          </Pressable>
+          <Pressable style={styles.secondaryBtn} onPress={importFromFile}>
+            <Text style={styles.secondaryText}>从文件</Text>
           </Pressable>
           <Pressable style={styles.primaryBtn} onPress={importJson}>
             <Text style={styles.primaryText}>导入到手机</Text>
@@ -264,8 +299,11 @@ export default function SourcesScreen() {
         </Pressable>
       </View>
 
+      <Pressable style={styles.outlineBtn} onPress={importDemoSource}>
+        <Text style={styles.outlineText}>导入内置演示书源（离线测试）</Text>
+      </Pressable>
       <Pressable style={styles.outlineBtn} onPress={importFromStore}>
-        <Text style={styles.outlineText}>从书源商店快速导入一本</Text>
+        <Text style={styles.outlineText}>从书源商店快速导入（需服务器）</Text>
       </Pressable>
 
       {sources.length > 0 && (

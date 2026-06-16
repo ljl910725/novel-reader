@@ -10,13 +10,15 @@ import {
 } from 'react-native';
 import { api, getToken } from '@/src/api';
 import { deviceStorage } from '@/src/lib/deviceStorage';
+import { localSearch, mapGuestSourceIds } from '@/src/lib/localEngine';
 import { colors, layout } from '@/src/theme';
+import type { SearchResult } from '@novel-reader/shared';
 
 export default function SearchScreen() {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
-  const [results, setResults] = useState<Array<Record<string, unknown>>>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
 
   const search = async () => {
     if (!q.trim()) return;
@@ -24,10 +26,10 @@ export default function SearchScreen() {
     setMsg('');
     try {
       const token = await getToken();
-      let r: Array<Record<string, unknown>>;
+      let r: SearchResult[];
 
       if (token) {
-        r = await api.search(q);
+        r = (await api.search(q)) as unknown as SearchResult[];
       } else {
         const sources = await deviceStorage.getEnabledConfigs();
         if (sources.length === 0) {
@@ -35,12 +37,9 @@ export default function SearchScreen() {
           setResults([]);
           return;
         }
-        const raw = await api.guestSearch(q, sources);
+        const raw = await localSearch(q, sources);
         const enabled = (await deviceStorage.getSources()).filter((s) => s.enabled);
-        r = raw.map((item) => {
-          const idx = Number(String(item.sourceId).replace('guest-', ''));
-          return { ...item, sourceId: enabled[idx]?.id ?? item.sourceId };
-        });
+        r = mapGuestSourceIds(raw, enabled);
       }
       setResults(r);
       if (r.length === 0) setMsg('未找到结果');
@@ -51,7 +50,7 @@ export default function SearchScreen() {
     }
   };
 
-  const addShelf = async (item: Record<string, unknown>) => {
+  const addShelf = async (item: SearchResult) => {
     try {
       const token = await getToken();
       if (token) {
@@ -66,12 +65,12 @@ export default function SearchScreen() {
         setMsg(`已加入云端书架：${item.name}`);
       } else {
         await deviceStorage.addToShelf({
-          title: String(item.name),
-          author: String(item.author),
-          sourceId: String(item.sourceId),
-          bookUrl: String(item.bookUrl),
-          coverUrl: item.coverUrl ? String(item.coverUrl) : undefined,
-          intro: item.intro ? String(item.intro) : undefined,
+          title: item.name,
+          author: item.author,
+          sourceId: item.sourceId,
+          bookUrl: item.bookUrl,
+          coverUrl: item.coverUrl,
+          intro: item.intro,
         });
         setMsg(`已加入手机书架：${item.name}`);
       }
