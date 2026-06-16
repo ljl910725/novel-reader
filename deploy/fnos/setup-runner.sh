@@ -6,7 +6,7 @@
 #   chmod +x setup-runner.sh deploy.sh
 #   ./setup-runner.sh
 #
-# 安装 systemd 服务时脚本会提示输入 sudo 密码（仅此一步需要 root）。
+# 注册完成后需由 root 手动安装并启动 systemd 服务（见脚本末尾说明）。
 # 完成后 push 到 master/main 会自动触发 .github/workflows/deploy-fnos.yml
 set -euo pipefail
 
@@ -34,7 +34,7 @@ if [[ "$(id -u)" -eq 0 ]]; then
   echo "  cd /你的路径/novel-reader/deploy/fnos"
   echo "  ./setup-runner.sh"
   echo ""
-  echo "仅最后安装 systemd 服务（svc.sh install）时需要 root；脚本会提示你输入 sudo 密码。"
+  echo "仅最后安装 systemd 服务（svc.sh install）时需要 root；见脚本末尾说明。"
   exit 1
 fi
 
@@ -83,18 +83,23 @@ fi
   --unattended \
   --replace
 
-echo ""
-echo "接下来安装 systemd 服务（需要 root，将提示输入 sudo 密码）..."
-sudo ./svc.sh install
-sudo ./svc.sh start
-
 PROFILE="$HOME/.profile"
 grep -q 'DEPLOY_ROOT=' "$PROFILE" 2>/dev/null && \
   sed -i "s|^export DEPLOY_ROOT=.*|export DEPLOY_ROOT=$PROD_REPO|" "$PROFILE" || \
   echo "export DEPLOY_ROOT=$PROD_REPO" >> "$PROFILE"
 
 echo ""
-echo "Runner 已启动。到 GitHub → Settings → Actions → Runners 应能看到在线状态。"
+echo "=== Runner 已注册，还需 root 安装并启动 systemd 服务 ==="
+echo ""
+echo "NAS 普通用户通常没有 sudo 权限。请切换到 root（或 su - root），执行："
+echo ""
+echo "  cd $INSTALL_DIR"
+echo "  ./svc.sh install github-runner"
+echo "  ./svc.sh start"
+echo ""
+echo "安装目录（INSTALL_DIR）: $INSTALL_DIR"
+echo ""
+echo "服务启动后，到 GitHub → Settings → Actions → Runners 应能看到在线状态。"
 echo ""
 echo "【还需一步】在 GitHub 仓库设置变量（Settings → Secrets and variables → Actions → Variables）："
 echo "  名称: DEPLOY_ROOT"
