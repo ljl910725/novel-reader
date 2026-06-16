@@ -23,6 +23,10 @@ function statusClass(status: UploadedFileRecord['parseStatus']) {
   return 'text-slate-500 bg-slate-100';
 }
 
+function displayFilename(name: string): string {
+  return name.replace(/[\x00-\x1f\x7f]/g, '').replace(/[\\/:*?"<>|]/g, '_').trim() || '未知文件';
+}
+
 export function UploadPage({ user, canUpload, canLocal }: Props) {
   const [msg, setMsg] = useState('');
   const [historyError, setHistoryError] = useState('');
@@ -174,7 +178,7 @@ export function UploadPage({ user, canUpload, canLocal }: Props) {
             {history.map((file) => (
               <div key={file.id} className="border rounded-lg p-3 flex flex-wrap justify-between gap-3 items-center">
                 <div className="min-w-0">
-                  <div className="font-medium truncate">{file.filename}</div>
+                  <div className="font-medium truncate">{displayFilename(file.filename)}</div>
                   <div className="text-xs text-slate-500 mt-1">
                     {(file.fileSize / 1024 / 1024).toFixed(2)} MB · {file.format} ·{' '}
                     {new Date(file.createdAt).toLocaleString()}

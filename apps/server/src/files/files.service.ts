@@ -5,11 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { detectFormat, parseEpub, parseTxt } from '@novel-reader/file-parser';
+import { detectFormat, decodeMulterFilename, parseEpub, parseTxt, sanitizeDisplayFilename } from '@novel-reader/file-parser';
 import { MAX_UPLOAD_SIZE } from '@novel-reader/shared';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, extname } from 'node:path';
 import { PrismaService } from '../prisma/prisma.service';
 
 function safeFileSize(size: bigint | number | null | undefined): number {
@@ -26,6 +26,10 @@ function safeIsoDate(value: Date | null | undefined): string {
     return new Date(0).toISOString();
   }
   return value.toISOString();
+}
+
+function displayFilename(filename: string | null | undefined): string {
+  return sanitizeDisplayFilename(decodeMulterFilename(filename ?? '未知文件'));
 }
 
 function serializeBook(
@@ -55,7 +59,7 @@ function serializeUploadedFile(
   try {
     return {
       id: file.id,
-      filename: file.filename ?? '未知文件',
+      filename: displayFilename(file.filename),
       format: file.format ?? 'TXT',
       fileSize: safeFileSize(file.fileSize),
       parseStatus: file.parseStatus ?? 'FAILED',
@@ -66,7 +70,7 @@ function serializeUploadedFile(
   } catch {
     return {
       id: file.id ?? 'unknown',
-      filename: file.filename ?? '未知文件',
+      filename: displayFilename(file.filename),
       format: 'TXT',
       fileSize: 0,
       parseStatus: 'FAILED' as const,
@@ -93,9 +97,10 @@ export class FilesService {
       throw new BadRequestException('文件超过 50MB 上限');
     }
 
+    const originalname = displayFilename(file.originalname);
     const buffer = file.buffer;
     const fileHash = createHash('sha256').update(buffer).digest('hex');
-    const format = detectFormat(file.originalname, buffer);
+    const format = detectFormat(originalname, buffer);
 
     const dup = await this.prisma.uploadedFile.findFirst({
       where: { userId, fileHash },
@@ -110,7 +115,7 @@ export class FilesService {
     const uploaded = await this.prisma.uploadedFile.create({
       data: {
         userId,
-        filename: file.originalname,
+        filename: originalname,
         format,
         storagePath: '',
         fileHash,
@@ -119,7 +124,8 @@ export class FilesService {
       },
     });
 
-    const storagePath = join(dir, `${uploaded.id}-${file.originalname}`);
+    const ext = extname(originalname).toLowerCase() || (format === 'EPUB' ? '.epub' : '.txt');
+    const storagePath = join(dir, `${uploaded.id}${ext}`);
     await writeFile(storagePath, buffer);
 
     await this.prisma.uploadedFile.update({
@@ -127,7 +133,7 @@ export class FilesService {
       data: { storagePath },
     });
 
-    this.parseAsync(uploaded.id, buffer, format, userId, file.originalname).catch(() => {});
+    this.parseAsync(uploaded.id, buffer, format, userId, originalname).catch(() => {});
 
     return { fileId: uploaded.id, parseStatus: 'PARSING' };
   }
@@ -222,6 +228,6 @@ export class FilesService {
     });
     if (!file) throw new NotFoundException('文件不存在');
     const buffer = await readFile(file.storagePath);
-    return { buffer, filename: file.filename };
+    return { buffer, filename: displayFilename(file.filename) };
   }
 }
