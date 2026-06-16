@@ -151,4 +151,92 @@ describe('parseEpub', () => {
     expect(result.chapters[0]?.content).toContain('data:image/png;base64,');
     expect(result.chapters[0]?.content).toContain(pngBase64);
   });
+
+  it('embeds images referenced with xlink:href', async () => {
+    const pngBase64 =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const buffer = await buildEpub({
+      'META-INF/container.xml': `<?xml version="1.0"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`,
+      'content.opf': baseOpf.replace(
+        '</manifest>',
+        '<item id="img1" href="images/pixel.png" media-type="image/png"/></manifest>',
+      ),
+      'ch1.xhtml': `<?xml version="1.0"?><html xmlns:xlink="http://www.w3.org/1999/xlink"><body><image xlink:href="images/pixel.png"/></body></html>`,
+      'ch2.xhtml': '<?xml version="1.0"?><html><body><p>第二段</p></body></html>',
+      'images/pixel.png': Buffer.from(pngBase64, 'base64'),
+    });
+
+    const result = await parseEpub(buffer);
+    expect(result.chapters[0]?.content).toContain('data:image/png;base64,');
+  });
+
+  it('resolves absolute image paths from epub root', async () => {
+    const pngBase64 =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const buffer = await buildEpub({
+      'META-INF/container.xml': `<?xml version="1.0"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`,
+      'OEBPS/content.opf': baseOpf
+        .replace('ch1.xhtml', 'Text/ch1.xhtml')
+        .replace('ch2.xhtml', 'Text/ch2.xhtml')
+        .replace(
+          '</manifest>',
+          '<item id="img1" href="Images/pixel.png" media-type="image/png"/></manifest>',
+        ),
+      'OEBPS/Text/ch1.xhtml': `<?xml version="1.0"?><html><body><img src="/OEBPS/Images/pixel.png"/></body></html>`,
+      'OEBPS/Text/ch2.xhtml': '<?xml version="1.0"?><html><body><p>y</p></body></html>',
+      'OEBPS/Images/pixel.png': Buffer.from(pngBase64, 'base64'),
+    });
+
+    const result = await parseEpub(buffer);
+    expect(result.chapters[0]?.content).toContain('data:image/png;base64,');
+  });
+
+  it('extracts cover and metadata from opf', async () => {
+    const pngBase64 =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const opf = `<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>封面书</dc:title>
+    <dc:creator>作者甲</dc:creator>
+    <dc:description>这是一本测试书的简介。</dc:description>
+    <dc:publisher>测试出版社</dc:publisher>
+    <dc:language>zh-CN</dc:language>
+    <meta name="cover" content="cover-img"/>
+  </metadata>
+  <manifest>
+    <item id="cover-img" href="cover.png" media-type="image/png"/>
+    <item id="c1" href="ch1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine><itemref idref="c1"/></spine>
+</package>`;
+    const buffer = await buildEpub({
+      'META-INF/container.xml': `<?xml version="1.0"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`,
+      'content.opf': opf,
+      'ch1.xhtml': '<?xml version="1.0"?><html><body><p>正文</p></body></html>',
+      'cover.png': Buffer.from(pngBase64, 'base64'),
+    });
+
+    const result = await parseEpub(buffer);
+    expect(result.meta.title).toBe('封面书');
+    expect(result.meta.intro).toBe('这是一本测试书的简介。');
+    expect(result.meta.coverUrl).toContain('data:image/png;base64,');
+    expect(result.meta.metadata?.publisher).toBe('测试出版社');
+    expect(result.meta.metadata?.language).toBe('zh-CN');
+  });
 });

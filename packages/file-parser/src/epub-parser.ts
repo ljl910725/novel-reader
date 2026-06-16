@@ -55,9 +55,16 @@ export async function parseEpub(buffer: FileBuffer): Promise<ParsedBook> {
     firstTagText(opfXml, 'dc:creator') ??
     firstTagText(opfXml, 'creator') ??
     '未知';
+  const intro =
+    firstTagText(opfXml, 'dc:description') ?? firstTagText(opfXml, 'description');
+  const publisher =
+    firstTagText(opfXml, 'dc:publisher') ?? firstTagText(opfXml, 'publisher');
+  const language =
+    firstTagText(opfXml, 'dc:language') ?? firstTagText(opfXml, 'language');
 
   const manifest = parseManifest(opfXml);
   const spineIds = parseSpine(opfXml);
+  const coverUrl = await extractCoverUrl(opfXml, manifest, zip, paths, opfDir);
   const chapters: ParsedBook['chapters'] = [];
 
   const chapterIds = spineIds.length > 0 ? spineIds : [...manifest.keys()];
@@ -84,7 +91,7 @@ export async function parseEpub(buffer: FileBuffer): Promise<ParsedBook> {
     const raw = await readZipText(zip, chapterPath);
     const chapterTitle = extractChapterTitle(raw) ?? `章节 ${chapters.length + 1}`;
     const sanitized = sanitizeEpubHtml(raw);
-    const withImages = await embedEpubImages(sanitized, zip, chapterPath, paths);
+    const withImages = await embedEpubAssets(sanitized, zip, chapterPath, opfDir, paths);
     chapters.push({
       index: chapters.length,
       title: chapterTitle,
@@ -96,8 +103,22 @@ export async function parseEpub(buffer: FileBuffer): Promise<ParsedBook> {
     throw new Error('EPUB 未找到可读章节');
   }
 
+  const metadata =
+    publisher || language
+      ? {
+          ...(publisher ? { publisher: stripXmlText(publisher) } : {}),
+          ...(language ? { language: stripXmlText(language) } : {}),
+        }
+      : undefined;
+
   return {
-    meta: { title: stripXmlText(title), author: stripXmlText(author) },
+    meta: {
+      title: stripXmlText(title),
+      author: stripXmlText(author),
+      intro: intro ? stripXmlText(intro) : undefined,
+      coverUrl,
+      metadata,
+    },
     chapters,
   };
 }
@@ -259,43 +280,199 @@ function guessImageMime(path: string): string {
   return IMAGE_MIME[ext] ?? 'image/jpeg';
 }
 
-async function embedEpubImages(
+function normalizeAssetPath(src: string): string {
+  const trimmed = src.trim();
+  const withoutQuery = trimmed.split('?')[0].split('#')[0];
+  try {
+    return decodeURIComponent(withoutQuery);
+  } catch {
+    return withoutQuery;
+  }
+}
+
+function resolveAssetZipPath(
+  src: string,
+  chapterZipPath: string,
+  opfDir: string,
+  paths: string[],
+): string | null {
+  const norm = normalizeAssetPath(src);
+  const candidates = [
+    resolveZipPath(chapterZipPath, norm),
+    resolveZipPath(`${opfDir}/placeholder`, norm),
+    norm.replace(/^\//, ''),
+    norm,
+  ];
+  for (const candidate of candidates) {
+    const found = findZipPath(paths, candidate);
+    if (found) return found;
+  }
+  return null;
+}
+
+function extractAssetSrc(attrs: string): string | null {
+  const patterns = [
+    /\bsrc\s*=\s*(["'])([^"']+)\1/i,
+    /\bsrc\s*=\s*([^\s>]+)/i,
+    /\bxlink:href\s*=\s*(["'])([^"']+)\1/i,
+    /\bhref\s*=\s*(["'])([^"']+)\1/i,
+    /\bsrcset\s*=\s*(["'])([^\s"']+)/i,
+  ];
+  for (const re of patterns) {
+    const m = attrs.match(re);
+    if (!m) continue;
+    const value = m[m.length - 1];
+    if (value) return value.split(',')[0]?.trim().split(/\s+/)[0] ?? value;
+  }
+  return null;
+}
+
+async function zipEntryToDataUrl(zip: JSZip, zipPath: string): Promise<string | null> {
+  const entry = zip.file(zipPath);
+  if (!entry) return null;
+  try {
+    const base64 = await entry.async('base64');
+    const mime = guessImageMime(zipPath);
+    return `data:${mime};base64,${base64}`;
+  } catch {
+    return null;
+  }
+}
+
+async function embedEpubAssets(
   html: string,
   zip: JSZip,
   chapterZipPath: string,
+  opfDir: string,
   paths: string[],
 ): Promise<string> {
-  const imgTagRe = /<img\b([^>]*?)>/gi;
   let result = html;
-  const tags = [...html.matchAll(imgTagRe)];
 
-  for (const match of tags) {
-    const fullTag = match[0];
-    const attrs = match[1] ?? '';
-    const srcMatch = attrs.match(/\bsrc\s*=\s*(["'])([^"']+)\1/i);
-    if (!srcMatch) continue;
+  const tagPatterns = [
+    /<img\b([^>]*?)>/gi,
+    /<image\b([^>]*?)>/gi,
+  ];
 
-    const src = decodeURIComponent(srcMatch[2].trim());
-    if (/^(data:|https?:|blob:)/i.test(src)) continue;
+  for (const tagRe of tagPatterns) {
+    const tags = [...result.matchAll(tagRe)];
+    for (const match of tags) {
+      const fullTag = match[0];
+      const attrs = match[1] ?? '';
+      const src = extractAssetSrc(attrs);
+      if (!src || /^(data:|https?:|blob:)/i.test(src)) continue;
 
-    const resolved =
-      findZipPath(paths, resolveZipPath(chapterZipPath, src)) ??
-      findZipPath(paths, src.replace(/^\//, ''));
-    if (!resolved) continue;
+      const resolved = resolveAssetZipPath(src, chapterZipPath, opfDir, paths);
+      if (!resolved) continue;
 
-    const entry = zip.file(resolved);
-    if (!entry) continue;
+      const dataUrl = await zipEntryToDataUrl(zip, resolved);
+      if (!dataUrl) continue;
 
-    try {
-      const base64 = await entry.async('base64');
-      const mime = guessImageMime(resolved);
-      const dataUrl = `data:${mime};base64,${base64}`;
-      const newTag = fullTag.replace(srcMatch[0], `src="${dataUrl}"`);
-      result = result.replace(fullTag, newTag);
-    } catch {
-      // keep original tag if image read fails
+      let newTag = fullTag;
+      if (/\bsrc\s*=/i.test(attrs)) {
+        newTag = fullTag.replace(/\bsrc\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i, `src="${dataUrl}"`);
+      } else if (/\bxlink:href\s*=/i.test(attrs)) {
+        newTag = fullTag.replace(
+          /\bxlink:href\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i,
+          `src="${dataUrl}"`,
+        );
+      } else if (/\bhref\s*=/i.test(attrs)) {
+        newTag = fullTag.replace(/\bhref\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i, `src="${dataUrl}"`);
+      }
+      result = result.includes(fullTag) ? result.replace(fullTag, newTag) : result;
     }
   }
 
+  const urlInStyleRe = /url\(\s*(["']?)([^"')]+)\1\s*\)/gi;
+  const styleMatches = [...result.matchAll(urlInStyleRe)];
+  for (const match of styleMatches) {
+    const full = match[0];
+    const src = match[2]?.trim();
+    if (!src || /^(data:|https?:|blob:)/i.test(src)) continue;
+
+    const resolved = resolveAssetZipPath(src, chapterZipPath, opfDir, paths);
+    if (!resolved) continue;
+
+    const dataUrl = await zipEntryToDataUrl(zip, resolved);
+    if (!dataUrl) continue;
+
+    result = result.replace(full, `url("${dataUrl}")`);
+  }
+
   return result;
+}
+
+async function extractCoverUrl(
+  opfXml: string,
+  manifest: Map<string, ManifestItem>,
+  zip: JSZip,
+  paths: string[],
+  opfDir: string,
+): Promise<string | undefined> {
+  const coverId = findCoverManifestId(opfXml);
+
+  let href: string | undefined;
+  if (coverId) {
+    const item = manifest.get(coverId);
+    href = item?.href;
+  }
+
+  if (!href) {
+    href = findCoverHrefFromGuide(opfXml) ?? findFirstImageHref(manifest);
+  }
+
+  if (!href) return undefined;
+
+  const resolved =
+    findZipPath(paths, resolveZipPath(opfDir, href)) ??
+    findZipPath(paths, href.replace(/^\//, ''));
+  if (!resolved) return undefined;
+
+  return (await zipEntryToDataUrl(zip, resolved)) ?? undefined;
+}
+
+function findCoverManifestId(opfXml: string): string | null {
+  const metaRe = /<meta\b([^>]*)\/?>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = metaRe.exec(opfXml))) {
+    const attrs = m[1];
+    const name = readAttr(attrs, 'name')?.toLowerCase();
+    if (name === 'cover') {
+      return readAttr(attrs, 'content') ?? null;
+    }
+  }
+
+  const itemRe = /<item\b([^>]*)\/?>/gi;
+  while ((m = itemRe.exec(opfXml))) {
+    const attrs = m[1];
+    const props = readAttr(attrs, 'properties') ?? '';
+    if (props.includes('cover-image')) {
+      return readAttr(attrs, 'id') ?? null;
+    }
+  }
+
+  return null;
+}
+
+function findCoverHrefFromGuide(opfXml: string): string | undefined {
+  const guideMatch = opfXml.match(/<guide\b[^>]*>([\s\S]*?)<\/guide>/i);
+  if (!guideMatch) return undefined;
+  const refRe = /<reference\b([^>]*)\/?>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = refRe.exec(guideMatch[1]))) {
+    const attrs = m[1];
+    const type = readAttr(attrs, 'type')?.toLowerCase();
+    if (type === 'cover' || type === 'other.ms-coverimage-standard') {
+      return readAttr(attrs, 'href');
+    }
+  }
+  return undefined;
+}
+
+function findFirstImageHref(manifest: Map<string, ManifestItem>): string | undefined {
+  for (const item of manifest.values()) {
+    if (item.mediaType.toLowerCase().startsWith('image/')) {
+      return item.href;
+    }
+  }
+  return undefined;
 }

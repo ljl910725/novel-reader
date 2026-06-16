@@ -157,6 +157,9 @@ export class FilesService {
         data: {
           title: parsed.meta.title,
           author: parsed.meta.author,
+          intro: parsed.meta.intro,
+          coverUrl: parsed.meta.coverUrl,
+          metadata: parsed.meta.metadata ? (parsed.meta.metadata as object) : undefined,
           bookType,
           userId,
           uploadedFileId: fileId,

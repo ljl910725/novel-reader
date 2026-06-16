@@ -150,6 +150,26 @@ export const api = {
   addToShelf: (body: Record<string, unknown>) =>
     request('/shelf', { method: 'POST', body: JSON.stringify(body) }),
 
+  getBook: (id: string) =>
+    request<{
+      id: string;
+      title: string;
+      author: string;
+      intro?: string | null;
+      coverUrl?: string | null;
+      bookType?: string;
+      publisher?: string;
+      language?: string;
+      chapterCount?: number;
+      createdAt?: string;
+      file?: {
+        filename: string;
+        format: string;
+        fileSize: number;
+        uploadedAt: string;
+      };
+    }>(`/books/${id}`),
+
   getChapters: (bookId: string) =>
     request<Array<{ id: string; title: string; index: number }>>(`/books/${bookId}/chapters`),
 

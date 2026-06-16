@@ -15,12 +15,20 @@ export class BooksService {
     userId: string,
     sourceId: string,
     bookUrl: string,
-    meta?: { title?: string; author?: string },
+    meta?: { title?: string; author?: string; coverUrl?: string; intro?: string },
   ) {
     let book = await this.prisma.book.findFirst({
       where: { sourceId, sourceBookUrl: bookUrl, userId },
     });
-    if (book) return book;
+    if (book) {
+      const patch: { coverUrl?: string; intro?: string } = {};
+      if (!book.coverUrl && meta?.coverUrl) patch.coverUrl = meta.coverUrl;
+      if (!book.intro && meta?.intro) patch.intro = meta.intro;
+      if (Object.keys(patch).length > 0) {
+        book = await this.prisma.book.update({ where: { id: book.id }, data: patch });
+      }
+      return book;
+    }
 
     const source = await this.sources.getUserSource(userId, sourceId);
     const engine = new BookEngine(source.legadoConfig as unknown as LegadoBookSource);
@@ -30,8 +38,8 @@ export class BooksService {
       data: {
         title: meta?.title ?? info.name ?? '未知书名',
         author: meta?.author ?? info.author ?? '未知',
-        intro: info.intro,
-        coverUrl: info.coverUrl,
+        intro: meta?.intro ?? info.intro,
+        coverUrl: meta?.coverUrl ?? info.coverUrl,
         bookType: 'SOURCE',
         sourceBookUrl: bookUrl,
         sourceId,
@@ -41,14 +49,58 @@ export class BooksService {
     return book;
   }
 
-  async getBook(id: string) {
+  private async requireBook(id: string) {
     const book = await this.prisma.book.findUnique({ where: { id } });
     if (!book) throw new NotFoundException('书籍不存在');
     return book;
   }
 
+  async getBook(id: string) {
+    const book = await this.prisma.book.findUnique({
+      where: { id },
+      include: {
+        uploadedFile: {
+          select: {
+            id: true,
+            filename: true,
+            format: true,
+            fileSize: true,
+            createdAt: true,
+          },
+        },
+        _count: { select: { chapters: true } },
+      },
+    });
+    if (!book) throw new NotFoundException('书籍不存在');
+
+    const metadata = (book.metadata ?? {}) as Record<string, unknown>;
+    const file = book.uploadedFile;
+
+    return {
+      id: book.id,
+      title: book.title,
+      author: book.author,
+      intro: book.intro,
+      coverUrl: book.coverUrl,
+      bookType: book.bookType,
+      publisher: typeof metadata.publisher === 'string' ? metadata.publisher : undefined,
+      language: typeof metadata.language === 'string' ? metadata.language : undefined,
+      chapterCount: book._count.chapters,
+      createdAt: book.createdAt.toISOString(),
+      file: file
+        ? {
+            id: file.id,
+            filename: file.filename,
+            format: file.format,
+            fileSize: Number(file.fileSize),
+            uploadedAt: file.createdAt.toISOString(),
+          }
+        : undefined,
+    };
+  }
+
   async getChapters(bookId: string) {
-    const book = await this.getBook(bookId);
+    const book = await this.requireBook(bookId);
     const existing = await this.prisma.chapter.findMany({
       where: { bookId },
       orderBy: { index: 'asc' },

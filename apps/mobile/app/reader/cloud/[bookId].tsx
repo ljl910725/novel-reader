@@ -1,14 +1,14 @@
+import { DEFAULT_READER_THEME } from '@novel-reader/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { DEFAULT_READER_THEME } from '@novel-reader/shared';
+import { ChapterContent } from '@/components/ChapterContent';
 import { api } from '@/src/api';
 import { colors, layout } from '@/src/theme';
 
@@ -29,9 +29,7 @@ export default function CloudReaderScreen() {
   useEffect(() => {
     const ch = chapters[chapterIndex];
     if (!ch) return;
-    api.getChapterContent(ch.id).then((r) => {
-      setContent(r.content.replace(/<[^>]+>/g, '\n').replace(/\n+/g, '\n').trim());
-    });
+    api.getChapterContent(ch.id).then((r) => setContent(r.content));
   }, [chapters, chapterIndex]);
 
   if (loading) {
@@ -46,14 +44,12 @@ export default function CloudReaderScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: theme.backgroundColor }]}>
-      <ScrollView contentContainerStyle={styles.reader}>
+      <View style={styles.reader}>
         <Text style={[styles.chapterTitle, { color: theme.textColor }]}>
           {chapters[chapterIndex]?.title}
         </Text>
-        <Text style={[styles.body, { color: theme.textColor, fontSize: theme.fontSize, lineHeight: theme.fontSize * theme.lineHeight }]}>
-          {content}
-        </Text>
-      </ScrollView>
+        <ChapterContent content={content} theme={theme} />
+      </View>
       <View style={styles.footer}>
         <Pressable
           disabled={chapterIndex === 0}
@@ -80,9 +76,8 @@ export default function CloudReaderScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  reader: { padding: 20, paddingBottom: 80 },
-  chapterTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
-  body: { textAlign: 'justify' },
+  reader: { flex: 1, paddingHorizontal: 8, paddingTop: 12 },
+  chapterTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8, paddingHorizontal: 12 },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',

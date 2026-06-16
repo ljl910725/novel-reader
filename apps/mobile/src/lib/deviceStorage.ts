@@ -28,6 +28,7 @@ export interface DeviceShelfItem {
   sourceId: string;
   bookUrl: string;
   coverUrl?: string;
+  intro?: string;
   addedAt: string;
 }
 

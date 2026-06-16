@@ -26,6 +26,8 @@ export class ShelfService {
       bookId?: string;
       title?: string;
       author?: string;
+      coverUrl?: string;
+      intro?: string;
       group?: string;
     },
   ) {
@@ -35,7 +37,12 @@ export class ShelfService {
         userId,
         data.sourceId,
         data.bookUrl,
-        { title: data.title, author: data.author },
+        {
+          title: data.title,
+          author: data.author,
+          coverUrl: data.coverUrl,
+          intro: data.intro,
+        },
       );
       bookId = book.id;
     }

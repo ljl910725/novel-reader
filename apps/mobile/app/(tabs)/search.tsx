@@ -60,6 +60,8 @@ export default function SearchScreen() {
           bookUrl: item.bookUrl,
           title: item.name,
           author: item.author,
+          coverUrl: item.coverUrl,
+          intro: item.intro,
         });
         setMsg(`已加入云端书架：${item.name}`);
       } else {
@@ -68,6 +70,8 @@ export default function SearchScreen() {
           author: String(item.author),
           sourceId: String(item.sourceId),
           bookUrl: String(item.bookUrl),
+          coverUrl: item.coverUrl ? String(item.coverUrl) : undefined,
+          intro: item.intro ? String(item.intro) : undefined,
         });
         setMsg(`已加入手机书架：${item.name}`);
       }

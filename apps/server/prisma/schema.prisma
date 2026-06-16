@@ -73,6 +73,7 @@ model Book {
   author          String          @default("未知")
   intro           String?
   coverUrl        String?
+  metadata        Json?
   bookType        BookType        @default(SOURCE)
   sourceBookUrl   String?
   sourceId        String?

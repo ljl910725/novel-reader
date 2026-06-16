@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { ChapterContent } from '@/components/ChapterContent';
 import { api } from '@/src/api';
 import { deviceStorage } from '@/src/lib/deviceStorage';
 import { colors, layout } from '@/src/theme';
@@ -60,7 +60,7 @@ export default function LocalReaderScreen() {
       const ch = chapters[chapterIndex];
       if (!source || !ch.sourceChapterUrl) return;
       const r = await api.guestContent(source.legadoConfig, ch.sourceChapterUrl);
-      setContent(r.content.replace(/<[^>]+>/g, '\n').replace(/\n+/g, '\n').trim());
+      setContent(r.content);
       await deviceStorage.saveProgress(shelfItemId, chapterIndex);
     })();
   }, [chapters, chapterIndex, shelfItemId]);
@@ -85,14 +85,12 @@ export default function LocalReaderScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: theme.backgroundColor }]}>
-      <ScrollView contentContainerStyle={styles.reader} showsVerticalScrollIndicator={false}>
+      <View style={styles.reader}>
         <Text style={[styles.chapterTitle, { color: theme.textColor }]}>
           {chapters[chapterIndex]?.title ?? title}
         </Text>
-        <Text style={[styles.body, { color: theme.textColor, fontSize: theme.fontSize, lineHeight: theme.fontSize * theme.lineHeight }]}>
-          {content}
-        </Text>
-      </ScrollView>
+        <ChapterContent content={content} theme={theme} />
+      </View>
       <View style={styles.footer}>
         <Pressable
           style={[styles.navBtn, chapterIndex === 0 && styles.disabled]}
@@ -120,9 +118,8 @@ const styles = StyleSheet.create({
   page: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: layout.pad },
   error: { color: colors.danger },
-  reader: { padding: 20, paddingBottom: 80 },
-  chapterTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
-  body: { textAlign: 'justify' },
+  reader: { flex: 1, paddingHorizontal: 8, paddingTop: 12 },
+  chapterTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8, paddingHorizontal: 12 },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',

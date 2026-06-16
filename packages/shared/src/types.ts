@@ -45,11 +45,17 @@ export interface SearchResult {
   sourceName: string;
 }
 
+export interface BookMetadata {
+  publisher?: string;
+  language?: string;
+}
+
 export interface BookMeta {
   title: string;
   author: string;
   intro?: string;
   coverUrl?: string;
+  metadata?: BookMetadata;
 }
 
 export interface ChapterInfo {
