@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import { describe, expect, it } from 'vitest';
 import { parseEpub } from './epub-parser';
 
-async function buildEpub(files: Record<string, string>): Promise<Buffer> {
+async function buildEpub(files: Record<string, string | Buffer>): Promise<Buffer> {
   const zip = new JSZip();
   for (const [path, content] of Object.entries(files)) {
     zip.file(path, content);
@@ -125,5 +125,30 @@ describe('parseEpub', () => {
     });
 
     await expect(parseEpub(buffer)).rejects.toThrow(/DRM/);
+  });
+
+  it('embeds relative images as base64 data URLs', async () => {
+    const pngBase64 =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const buffer = await buildEpub({
+      mimetype: 'application/epub+zip',
+      'META-INF/container.xml': `<?xml version="1.0"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`,
+      'content.opf': baseOpf.replace(
+        '</manifest>',
+        '<item id="img1" href="images/pixel.png" media-type="image/png"/></manifest>',
+      ),
+      'ch1.xhtml': `<?xml version="1.0"?><html><body><p>插图</p><img src="images/pixel.png" alt="pixel"/></body></html>`,
+      'ch2.xhtml': '<?xml version="1.0"?><html><body><p>第二段</p></body></html>',
+      'images/pixel.png': Buffer.from(pngBase64, 'base64'),
+    });
+
+    const result = await parseEpub(buffer);
+    expect(result.chapters[0]?.content).toContain('data:image/png;base64,');
+    expect(result.chapters[0]?.content).toContain(pngBase64);
   });
 });

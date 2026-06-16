@@ -58,17 +58,19 @@ export function detectFormat(filename: string, buffer: FileBuffer): FileFormat {
   return 'TXT';
 }
 
+/** @deprecated Prefer decodeTxtBuffer for multi-encoding support. */
 export function detectEncoding(buffer: FileBuffer): 'utf-8' | 'gbk' {
-  if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+  const b = toBuffer(buffer);
+  if (b.length >= 3 && b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf) {
     return 'utf-8';
   }
-  const sample = buffer.slice(0, Math.min(buffer.length, 4096)).toString('binary');
-  const utf8Invalid = /[\x80-\xff]/.test(sample) && !isValidUtf8(buffer.slice(0, 4096));
+  const sample = b.slice(0, Math.min(b.length, 4096));
+  const utf8Invalid = /[\x80-\xff]/.test(sample.toString('binary')) && !isValidUtf8(sample);
   if (utf8Invalid) return 'gbk';
   return 'utf-8';
 }
 
-function isValidUtf8(buf: FileBuffer): boolean {
+function isValidUtf8(buf: Buffer): boolean {
   try {
     const decoder = new TextDecoder('utf-8', { fatal: true });
     decoder.decode(buf);

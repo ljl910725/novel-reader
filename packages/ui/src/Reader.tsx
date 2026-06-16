@@ -31,12 +31,14 @@ export function Reader({ theme, title, content, isHtml, onPrev, onNext, toolbar 
 
   return (
     <div style={style} className="reader-root">
+      <style>{`.reader-html-content img { max-width: 100%; height: auto; display: block; margin: 12px auto; }`}</style>
       {toolbar}
       <div style={innerStyle}>
         <h1 style={{ fontSize: theme.fontSize + 4, marginBottom: 16 }}>{title}</h1>
         {isHtml ? (
           <div
             style={paragraphStyle}
+            className="reader-html-content"
             dangerouslySetInnerHTML={{ __html: content }}
           />
         ) : (

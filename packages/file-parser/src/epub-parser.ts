@@ -83,10 +83,12 @@ export async function parseEpub(buffer: FileBuffer): Promise<ParsedBook> {
 
     const raw = await readZipText(zip, chapterPath);
     const chapterTitle = extractChapterTitle(raw) ?? `章节 ${chapters.length + 1}`;
+    const sanitized = sanitizeEpubHtml(raw);
+    const withImages = await embedEpubImages(sanitized, zip, chapterPath, paths);
     chapters.push({
       index: chapters.length,
       title: chapterTitle,
-      content: sanitizeEpubHtml(raw),
+      content: withImages,
     });
   }
 
@@ -238,5 +240,62 @@ function sanitizeEpubHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/on\w+="[^"]*"/gi, '');
+    .replace(/on\w+="[^"]*"/gi, '')
+    .replace(/on\w+='[^']*'/gi, '');
+}
+
+const IMAGE_MIME: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.bmp': 'image/bmp',
+};
+
+function guessImageMime(path: string): string {
+  const ext = path.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? '';
+  return IMAGE_MIME[ext] ?? 'image/jpeg';
+}
+
+async function embedEpubImages(
+  html: string,
+  zip: JSZip,
+  chapterZipPath: string,
+  paths: string[],
+): Promise<string> {
+  const imgTagRe = /<img\b([^>]*?)>/gi;
+  let result = html;
+  const tags = [...html.matchAll(imgTagRe)];
+
+  for (const match of tags) {
+    const fullTag = match[0];
+    const attrs = match[1] ?? '';
+    const srcMatch = attrs.match(/\bsrc\s*=\s*(["'])([^"']+)\1/i);
+    if (!srcMatch) continue;
+
+    const src = decodeURIComponent(srcMatch[2].trim());
+    if (/^(data:|https?:|blob:)/i.test(src)) continue;
+
+    const resolved =
+      findZipPath(paths, resolveZipPath(chapterZipPath, src)) ??
+      findZipPath(paths, src.replace(/^\//, ''));
+    if (!resolved) continue;
+
+    const entry = zip.file(resolved);
+    if (!entry) continue;
+
+    try {
+      const base64 = await entry.async('base64');
+      const mime = guessImageMime(resolved);
+      const dataUrl = `data:${mime};base64,${base64}`;
+      const newTag = fullTag.replace(srcMatch[0], `src="${dataUrl}"`);
+      result = result.replace(fullTag, newTag);
+    } catch {
+      // keep original tag if image read fails
+    }
+  }
+
+  return result;
 }

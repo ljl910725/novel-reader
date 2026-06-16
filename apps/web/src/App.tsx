@@ -5,6 +5,7 @@ import { usePermissions } from './hooks/usePermissions';
 import { AdminPage } from './pages/AdminPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { GuestReaderPage } from './pages/GuestReaderPage';
+import { LocalReaderPage } from './pages/LocalReaderPage';
 import { LoginPage } from './pages/LoginPage';
 import { ReaderPage } from './pages/ReaderPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -40,6 +41,7 @@ function AppRoutes() {
           {user && <Route path="/source-editor/:id" element={<SourceEditorPage />} />}
           <Route path="/upload" element={<UploadPage user={user} canUpload={can('cloudUpload')} canLocal={can('localBooks')} />} />
           <Route path="/settings" element={<SettingsPage user={user} />} />
+          <Route path="/read/local" element={<LocalReaderPage />} />
           <Route path="/read/:bookId" element={<ReaderPage />} />
           <Route path="/read/guest/:shelfItemId" element={<GuestReaderPage />} />
           {user?.role === 'ADMIN' && can('adminPanel') && <Route path="/admin" element={<AdminPage />} />}

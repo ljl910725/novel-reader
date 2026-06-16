@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { parseTxtBrowser } from '../lib/parseTxtBrowser';
+import { parseTxtBrowserLazy } from '../lib/parseTxtBrowser';
+import { setLocalTxtBook } from '../lib/localTxtStore';
 import { api, type UploadedFileRecord } from '../api';
 
 interface Props {
@@ -130,10 +131,15 @@ export function UploadPage({ user, canUpload, canLocal }: Props) {
     }
     const buffer = await file.arrayBuffer();
     const buf = new Uint8Array(buffer);
-    const parsed = parseTxtBrowser(buf, { title: file.name.replace(/\.[^.]+$/, '') });
+    const parsed = parseTxtBrowserLazy(buf, { title: file.name.replace(/\.[^.]+$/, '') });
 
-    sessionStorage.setItem('localBook', JSON.stringify(parsed));
-    setMsg(`本地解析完成：${parsed.meta.title}，共 ${parsed.chapters.length} 章（仅本次会话）`);
+    setLocalTxtBook({
+      title: parsed.title,
+      author: parsed.author,
+      text: parsed.text,
+      slices: parsed.slices,
+    });
+    setMsg(`本地解析完成：${parsed.title}，共 ${parsed.slices.length} 章（仅本次会话）`);
     navigate('/read/local');
   };
 

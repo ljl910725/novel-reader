@@ -47,9 +47,12 @@ export const DEFAULT_DESKTOP_WINDOW = {
 export const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
 
 export const CHAPTER_SPLIT_PATTERNS = [
-  /^第[零一二三四五六七八九十百千万\d]+章[^\n]*/m,
-  /^Chapter\s+\d+/im,
-  /^第\d+章/m,
+  /^第[零一二三四五六七八九十百千万\d]+章[^\n\r]*/m,
+  /^第[零一二三四五六七八九十百千万\d]+节[^\n\r]*/m,
+  /^第\s*\d+\s*章[^\n\r]*/m,
+  /^Chapter\s+\d+[^\n\r]*/im,
+  /^【[^】\n\r]{1,40}】/m,
+  /^={3,}$/m,
 ];
 
 export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
