@@ -14,6 +14,21 @@ jobs:
     runs-on: [self-hosted, fnos, novel-reader]
     steps:
       - name: Pull and redeploy
-        run: bash "$DEPLOY_ROOT/deploy/fnos/deploy.sh"
+        shell: bash -l {0}
         env:
           DEPLOY_ROOT: ${{ vars.DEPLOY_ROOT }}
+          PATH: /usr/local/bin:/usr/bin:/bin:/snap/bin:/usr/local/sbin:/usr/sbin:/sbin
+        run: |
+          set -euo pipefail
+          if [[ -z "${DEPLOY_ROOT:-}" ]]; then
+            echo "::error::DEPLOY_ROOT 未设置。请在 GitHub 仓库 Settings → Actions → Variables 添加 DEPLOY_ROOT（生产仓库绝对路径，如 /vol1/1000/novel-reader）。"
+            exit 1
+          fi
+          DEPLOY_SCRIPT="$DEPLOY_ROOT/deploy/fnos/deploy.sh"
+          if [[ ! -f "$DEPLOY_SCRIPT" ]]; then
+            echo "::error::找不到部署脚本: $DEPLOY_SCRIPT（请确认 DEPLOY_ROOT 指向 NAS 上的 novel-reader 仓库根目录）"
+            exit 1
+          fi
+          echo "DEPLOY_ROOT=$DEPLOY_ROOT"
+          echo "PATH=$PATH"
+          bash "$DEPLOY_SCRIPT"
