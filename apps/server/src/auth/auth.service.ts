@@ -177,7 +177,7 @@ export class AuthService {
     }
     const accessToken = this.jwt.sign(payload);
     const refreshExpiresIn =
-      rememberDays > 0
+      rememberDays != null && rememberDays > 0
         ? `${rememberDays}d`
         : rememberDays === 0
           ? '1d'

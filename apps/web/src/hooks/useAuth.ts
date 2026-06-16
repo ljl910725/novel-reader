@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string, options?: LoginOptions) => {
-      const rememberDays = options?.rememberDays ?? 0;
+      const rememberDays: 0 | 1 | 7 | 30 = options?.rememberDays ?? 0;
       const tokens = await api.login({
         email,
         password,
