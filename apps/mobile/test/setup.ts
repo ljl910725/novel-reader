@@ -13,6 +13,14 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
       memory.delete(key);
       return Promise.resolve();
     }),
+    multiSet: vi.fn((pairs: [string, string][]) => {
+      for (const [key, value] of pairs) memory.set(key, value);
+      return Promise.resolve();
+    }),
+    multiRemove: vi.fn((keys: string[]) => {
+      for (const key of keys) memory.delete(key);
+      return Promise.resolve();
+    }),
     clear: vi.fn(() => {
       memory.clear();
       return Promise.resolve();

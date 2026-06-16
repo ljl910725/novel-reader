@@ -14,7 +14,12 @@ export interface DeviceSource {
   group: string;
   enabled: boolean;
   legadoConfig: LegadoBookSource;
+  healthStatus?: 'healthy' | 'offline';
+  lastChecked?: string;
 }
+
+const DEFAULT_API_URL =
+  process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ?? 'http://10.0.2.2:3001/api';
 
 export interface DeviceShelfItem {
   id: string;
@@ -52,7 +57,7 @@ async function newId() {
 /** 手机本地存储：书源、书架、进度均保存在 APK 设备上（AsyncStorage） */
 export const deviceStorage = {
   async getApiUrl(): Promise<string> {
-    return (await AsyncStorage.getItem(API_URL_KEY)) ?? 'http://10.0.2.2:3001/api';
+    return (await AsyncStorage.getItem(API_URL_KEY)) ?? DEFAULT_API_URL;
   },
 
   async setApiUrl(url: string) {
@@ -95,6 +100,21 @@ export const deviceStorage = {
   async toggleSource(id: string, enabled: boolean) {
     const all = await deviceStorage.getSources();
     await deviceStorage.saveSources(all.map((s) => (s.id === id ? { ...s, enabled } : s)));
+  },
+
+  async removeSources(ids: string[]) {
+    const idSet = new Set(ids);
+    const all = await deviceStorage.getSources();
+    await deviceStorage.saveSources(all.filter((s) => !idSet.has(s.id)));
+  },
+
+  async updateHealth(id: string, healthStatus: 'healthy' | 'offline') {
+    const all = await deviceStorage.getSources();
+    await deviceStorage.saveSources(
+      all.map((s) =>
+        s.id === id ? { ...s, healthStatus, lastChecked: new Date().toISOString() } : s,
+      ),
+    );
   },
 
   async getShelf(): Promise<DeviceShelfItem[]> {

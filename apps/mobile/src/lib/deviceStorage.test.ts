@@ -38,6 +38,17 @@ describe('deviceStorage', () => {
     expect(await deviceStorage.getEnabledConfigs()).toHaveLength(0);
   });
 
+  it('removes sources and updates health', async () => {
+    const [a, b] = await deviceStorage.importSources([sampleSource, { ...sampleSource, bookSourceName: 'B' }]);
+    await deviceStorage.updateHealth(a.id, 'healthy');
+    const all = await deviceStorage.getSources();
+    expect(all.find((s) => s.id === a.id)?.healthStatus).toBe('healthy');
+
+    await deviceStorage.removeSources([a.id]);
+    expect(await deviceStorage.getSources()).toHaveLength(1);
+    expect((await deviceStorage.getSources())[0].id).toBe(b.id);
+  });
+
   it('adds shelf items without duplicates', async () => {
     const [source] = await deviceStorage.importSources([sampleSource]);
     const item = {

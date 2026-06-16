@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { api, setToken } from './api';
+import { api, setTokens } from './api';
 import { deviceStorage } from './lib/deviceStorage';
 
 const BASE = process.env.API_BASE_URL ?? 'http://127.0.0.1:3001';
@@ -36,9 +36,9 @@ describe('mobile API integration (live)', () => {
   });
 
   it('logs in with demo account', async () => {
-    const { accessToken } = await api.login({ email: 'demo@novel.local', password: 'demo123' });
+    const { accessToken, refreshToken } = await api.login({ email: 'demo@novel.local', password: 'demo123' });
     expect(accessToken).toBeTruthy();
-    await setToken(accessToken);
+    await setTokens(accessToken, refreshToken);
 
     const me = await api.me();
     expect(me.email).toBe('demo@novel.local');
@@ -46,8 +46,8 @@ describe('mobile API integration (live)', () => {
   });
 
   it('loads shelf for logged-in user', async () => {
-    const { accessToken } = await api.login({ email: 'demo@novel.local', password: 'demo123' });
-    await setToken(accessToken);
+    const { accessToken, refreshToken } = await api.login({ email: 'demo@novel.local', password: 'demo123' });
+    await setTokens(accessToken, refreshToken);
     const shelf = await api.shelf();
     expect(Array.isArray(shelf)).toBe(true);
   });

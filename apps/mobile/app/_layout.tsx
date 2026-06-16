@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { initAuthStorage } from '@/src/lib/authStorage';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -25,6 +26,10 @@ export default function RootLayout() {
   });
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
+  useEffect(() => {
+    initAuthStorage();
+  }, []);
+
   useEffect(() => {
     if (error) throw error;
   }, [error]);
@@ -50,6 +55,8 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ title: '登录', presentation: 'modal' }} />
+        <Stack.Screen name="register" options={{ title: '注册', presentation: 'modal' }} />
+        <Stack.Screen name="forgot-password" options={{ title: '找回密码', presentation: 'modal' }} />
         <Stack.Screen name="reader/local/[shelfItemId]" options={{ title: '阅读' }} />
         <Stack.Screen name="reader/cloud/[bookId]" options={{ title: '阅读' }} />
       </Stack>
