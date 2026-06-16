@@ -2,11 +2,19 @@ import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
+const REMEMBER_OPTIONS = [
+  { value: 1, label: '1 天' },
+  { value: 7, label: '7 天' },
+  { value: 30, label: '30 天' },
+] as const;
+
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('demo@novel.local');
-  const [password, setPassword] = useState('demo123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(false);
+  const [rememberDays, setRememberDays] = useState<1 | 7 | 30>(7);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -15,7 +23,7 @@ export function LoginPage() {
     setError('');
     setSubmitting(true);
     try {
-      await login(email, password);
+      await login(email, password, remember ? { rememberDays } : { rememberDays: 0 });
       navigate('/shelf', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败');
@@ -37,6 +45,29 @@ export function LoginPage() {
           密码
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />
+            保持登录
+          </label>
+          {remember && (
+            <select
+              value={rememberDays}
+              onChange={(e) => setRememberDays(Number(e.target.value) as 1 | 7 | 30)}
+              className="border border-slate-300 rounded px-2 py-1"
+            >
+              {REMEMBER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
         <button
           type="submit"
           disabled={submitting}

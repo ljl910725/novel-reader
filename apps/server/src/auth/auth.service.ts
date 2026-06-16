@@ -54,14 +54,14 @@ export class AuthService {
     return this.tokens(user.id, user.email, user.role);
   }
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string, rememberDays: number) {
     const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (!user) throw new UnauthorizedException('邮箱或密码错误');
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('邮箱或密码错误');
 
-    return this.tokens(user.id, user.email, user.role);
+    return this.tokens(user.id, user.email, user.role, rememberDays);
   }
 
   async sendResetCode(email: string) {
@@ -132,7 +132,11 @@ export class AuthService {
       });
       const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
       if (!user) throw new UnauthorizedException('用户不存在');
-      return this.tokens(user.id, user.email, user.role);
+      const rememberDays =
+        typeof payload.rememberDays === 'number' && payload.rememberDays > 0
+          ? payload.rememberDays
+          : undefined;
+      return this.tokens(user.id, user.email, user.role, rememberDays);
     } catch {
       throw new UnauthorizedException('刷新令牌无效');
     }
@@ -162,12 +166,25 @@ export class AuthService {
     });
   }
 
-  private tokens(userId: string, email: string, role: string) {
-    const payload = { sub: userId, email, role };
+  private tokens(userId: string, email: string, role: string, rememberDays?: number) {
+    const payload: { sub: string; email: string; role: string; rememberDays?: number } = {
+      sub: userId,
+      email,
+      role,
+    };
+    if (rememberDays && rememberDays > 0) {
+      payload.rememberDays = rememberDays;
+    }
     const accessToken = this.jwt.sign(payload);
+    const refreshExpiresIn =
+      rememberDays > 0
+        ? `${rememberDays}d`
+        : rememberDays === 0
+          ? '1d'
+          : this.config.get('JWT_REFRESH_EXPIRES_IN', '7d');
     const refreshToken = this.jwt.sign(payload, {
       secret: this.config.get('JWT_REFRESH_SECRET', 'dev-refresh-secret'),
-      expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN', '7d'),
+      expiresIn: refreshExpiresIn,
     });
     return { accessToken, refreshToken };
   }

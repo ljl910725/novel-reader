@@ -1,9 +1,10 @@
 import type { UserPermissions } from '@novel-reader/shared';
+import { getAccessToken } from './lib/authStorage';
 
 const API = '/api';
 
 function getToken() {
-  return localStorage.getItem('accessToken');
+  return getAccessToken();
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -18,8 +19,17 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const res = await fetch(`${API}${path}`, { ...options, headers });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message ?? '请求失败');
+    const err = await res.json().catch(() => ({} as { message?: string | string[] }));
+    const raw = err.message;
+    const message = Array.isArray(raw) ? raw.join('；') : raw;
+    if (res.status >= 500) {
+      throw new Error(
+        message && message !== 'Internal Server Error'
+          ? message
+          : `服务器错误（${res.status}），请稍后重试；若持续出现请更新 API 镜像`,
+      );
+    }
+    throw new Error(message ?? `请求失败（${res.status}）`);
   }
   return res.json();
 }
@@ -76,7 +86,7 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
-  login: (body: { email: string; password: string }) =>
+  login: (body: { email: string; password: string; rememberDays?: 0 | 1 | 7 | 30 }) =>
     request<{ accessToken: string; refreshToken: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(body),

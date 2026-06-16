@@ -15,4 +15,10 @@ describe('auth schemas', () => {
     const r = loginSchema.safeParse({ email: 'a@b.com', password: 'x' });
     expect(r.success).toBe(true);
   });
+
+  it('validates login with rememberDays', () => {
+    expect(loginSchema.safeParse({ email: 'a@b.com', password: 'x', rememberDays: 7 }).success).toBe(true);
+    expect(loginSchema.safeParse({ email: 'a@b.com', password: 'x', rememberDays: 0 }).success).toBe(true);
+    expect(loginSchema.safeParse({ email: 'a@b.com', password: 'x', rememberDays: 14 }).success).toBe(false);
+  });
 });

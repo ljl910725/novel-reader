@@ -42,9 +42,17 @@ export const adminUpdateUserSchema = z.object({
   password: z.string().min(6).optional(),
 });
 
+export const loginRememberDaysSchema = z.union([
+  z.literal(0),
+  z.literal(1),
+  z.literal(7),
+  z.literal(30),
+]);
+
 export const loginSchema = z.object({
   email: z.string().email('请输入有效邮箱'),
   password: z.string().min(1, '请输入密码'),
+  rememberDays: loginRememberDaysSchema.optional(),
 });
 
 export const legadoSourceSchema = z.object({

@@ -33,7 +33,7 @@ export class AuthController {
   @Post('login')
   async login(@Body() body: unknown) {
     const parsed = loginSchema.parse(body);
-    return this.auth.login(parsed.email, parsed.password);
+    return this.auth.login(parsed.email, parsed.password, parsed.rememberDays ?? 0);
   }
 
   @Post('forgot-password')

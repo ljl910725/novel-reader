@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from '../api';
+import { clearTokens, getAccessToken, isRememberExpired, setTokens } from '../lib/authStorage';
 
 interface User {
   id: string;
@@ -19,10 +20,14 @@ interface User {
   permissions?: import('@novel-reader/shared').UserPermissions;
 }
 
+interface LoginOptions {
+  rememberDays?: 1 | 7 | 30 | 0;
+}
+
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, options?: LoginOptions) => Promise<void>;
   register: (email: string, password: string, nickname: string, code: string) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
@@ -35,7 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const token = localStorage.getItem('accessToken');
+    if (isRememberExpired()) {
+      clearTokens();
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+    const token = getAccessToken();
     if (!token) {
       setUser(null);
       setLoading(false);
@@ -45,8 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await api.me();
       setUser(me);
     } catch {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      clearTokens();
       setUser(null);
     } finally {
       setLoading(false);
@@ -58,10 +68,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
-      const tokens = await api.login({ email, password });
-      localStorage.setItem('accessToken', tokens.accessToken);
-      localStorage.setItem('refreshToken', tokens.refreshToken);
+    async (email: string, password: string, options?: LoginOptions) => {
+      const rememberDays = options?.rememberDays ?? 0;
+      const tokens = await api.login({
+        email,
+        password,
+        rememberDays,
+      });
+      setTokens(
+        tokens.accessToken,
+        tokens.refreshToken,
+        rememberDays > 0 ? rememberDays : undefined,
+      );
       setLoading(true);
       await refresh();
     },
@@ -71,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(
     async (email: string, password: string, nickname: string, code: string) => {
       const tokens = await api.register({ email, password, nickname, code });
+      clearTokens();
       localStorage.setItem('accessToken', tokens.accessToken);
       localStorage.setItem('refreshToken', tokens.refreshToken);
       setLoading(true);
@@ -80,8 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    clearTokens();
     setUser(null);
   }, []);
 
