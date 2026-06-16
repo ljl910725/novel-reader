@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { api } from '../api';
 
 interface User {
@@ -10,7 +19,18 @@ interface User {
   permissions?: import('@novel-reader/shared').UserPermissions;
 }
 
-export function useAuth() {
+interface AuthContextValue {
+  user: User | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, nickname: string) => Promise<void>;
+  logout: () => void;
+  refresh: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,25 +57,46 @@ export function useAuth() {
     refresh();
   }, [refresh]);
 
-  const login = async (email: string, password: string) => {
-    const tokens = await api.login({ email, password });
-    localStorage.setItem('accessToken', tokens.accessToken);
-    localStorage.setItem('refreshToken', tokens.refreshToken);
-    await refresh();
-  };
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const tokens = await api.login({ email, password });
+      localStorage.setItem('accessToken', tokens.accessToken);
+      localStorage.setItem('refreshToken', tokens.refreshToken);
+      setLoading(true);
+      await refresh();
+    },
+    [refresh],
+  );
 
-  const register = async (email: string, password: string, nickname: string) => {
-    const tokens = await api.register({ email, password, nickname });
-    localStorage.setItem('accessToken', tokens.accessToken);
-    localStorage.setItem('refreshToken', tokens.refreshToken);
-    await refresh();
-  };
+  const register = useCallback(
+    async (email: string, password: string, nickname: string) => {
+      const tokens = await api.register({ email, password, nickname });
+      localStorage.setItem('accessToken', tokens.accessToken);
+      localStorage.setItem('refreshToken', tokens.refreshToken);
+      setLoading(true);
+      await refresh();
+    },
+    [refresh],
+  );
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     setUser(null);
-  };
+  }, []);
 
-  return { user, loading, login, register, logout, refresh };
+  const value = useMemo(
+    () => ({ user, loading, login, register, logout, refresh }),
+    [user, loading, login, register, logout, refresh],
+  );
+
+  return createElement(AuthContext.Provider, { value }, children);
+}
+
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return ctx;
 }

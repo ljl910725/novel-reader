@@ -8,14 +8,19 @@ export function LoginPage() {
   const [email, setEmail] = useState('demo@novel.local');
   const [password, setPassword] = useState('demo123');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    setSubmitting(true);
     try {
       await login(email, password);
+      navigate('/shelf', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -32,8 +37,12 @@ export function LoginPage() {
           密码
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
-        <button type="submit" className="bg-indigo-600 text-white py-2 rounded-lg">
-          登录
+        <button
+          type="submit"
+          disabled={submitting}
+          className="bg-indigo-600 text-white py-2 rounded-lg disabled:opacity-60"
+        >
+          {submitting ? '登录中…' : '登录'}
         </button>
         <button
           type="button"

@@ -1,21 +1,27 @@
 import { FormEvent, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export function RegisterPage() {
   const { register } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    setSubmitting(true);
     try {
       await register(email, password, nickname);
+      navigate('/shelf', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '注册失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -27,7 +33,13 @@ export function RegisterPage() {
         <label>昵称<input value={nickname} onChange={(e) => setNickname(e.target.value)} required /></label>
         <label>邮箱<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
         <label>密码<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} /></label>
-        <button type="submit" className="bg-indigo-600 text-white py-2 rounded-lg">注册</button>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="bg-indigo-600 text-white py-2 rounded-lg disabled:opacity-60"
+        >
+          {submitting ? '注册中…' : '注册'}
+        </button>
         <p className="text-center text-sm"><Link to="/" className="text-indigo-600">已有账号，去登录</Link></p>
       </form>
     </div>
