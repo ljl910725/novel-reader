@@ -1,5 +1,5 @@
-import { parseTxt } from '@novel-reader/file-parser/txt';
 import { useState } from 'react';
+import { parseTxtBrowser } from '../lib/parseTxtBrowser';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 
@@ -48,7 +48,7 @@ export function UploadPage({ user, canUpload, canLocal }: Props) {
     }
     const buffer = await file.arrayBuffer();
     const buf = new Uint8Array(buffer);
-    const parsed = parseTxt(buf, { title: file.name.replace(/\.[^.]+$/, '') });
+    const parsed = parseTxtBrowser(buf, { title: file.name.replace(/\.[^.]+$/, '') });
 
     sessionStorage.setItem('localBook', JSON.stringify(parsed));
     setMsg(`本地解析完成：${parsed.meta.title}，共 ${parsed.chapters.length} 章（仅本次会话）`);
