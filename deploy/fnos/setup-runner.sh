@@ -8,6 +8,7 @@
 #
 # 完成后 push 到 master/main 会自动触发 .github/workflows/deploy-fnos.yml
 set -euo pipefail
+HOME="${HOME:-/root}"
 
 REPO_URL="${REPO_URL:-https://github.com/ljl910725/novel-reader}"
 RUNNER_NAME="${RUNNER_NAME:-fnos-novel-reader}"
