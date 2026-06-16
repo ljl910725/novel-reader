@@ -25,19 +25,25 @@ function statusClass(status: UploadedFileRecord['parseStatus']) {
 
 export function UploadPage({ user, canUpload, canLocal }: Props) {
   const [msg, setMsg] = useState('');
+  const [historyError, setHistoryError] = useState('');
   const [history, setHistory] = useState<UploadedFileRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const navigate = useNavigate();
   const historyRef = useRef<UploadedFileRecord[]>([]);
   historyRef.current = history;
 
-  const loadHistory = useCallback(async () => {
-    if (!user || !canUpload) return;
+  const loadHistory = useCallback(async (): Promise<UploadedFileRecord[] | null> => {
+    if (!user || !canUpload) return [];
     setLoadingHistory(true);
+    setHistoryError('');
     try {
-      setHistory(await api.listFiles());
+      const rows = await api.listFiles();
+      setHistory(rows);
+      return rows;
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : '加载上传记录失败');
+      const text = e instanceof Error ? e.message : '加载上传记录失败';
+      setHistoryError(text);
+      return null;
     } finally {
       setLoadingHistory(false);
     }
@@ -81,12 +87,18 @@ export function UploadPage({ user, canUpload, canLocal }: Props) {
     }
     try {
       const r = await api.uploadFile(file);
+      const rows = await loadHistory();
       if (r.duplicate) {
-        setMsg('该文件此前已上传，可在下方记录中查看状态');
+        if (rows === null || rows.length === 0) {
+          setMsg(
+            '该文件此前已上传（服务器有记录），但上传记录未能加载。请点「刷新」；若仍失败，请更新 NAS 上的 API 镜像后重试。',
+          );
+        } else {
+          setMsg('该文件此前已上传，可在下方记录中查看状态');
+        }
       } else {
         setMsg(`「${file.name}」上传成功，正在解析…`);
       }
-      await loadHistory();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : '上传失败');
     }
@@ -148,7 +160,15 @@ export function UploadPage({ user, canUpload, canLocal }: Props) {
           </div>
           <p className="text-sm text-slate-500">离开本页后解析仍在后台进行，可随时回来查看状态。</p>
 
-          {loadingHistory && history.length === 0 && <p className="text-slate-500 text-sm">加载中…</p>}
+          {historyError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              {historyError}
+            </p>
+          )}
+
+          {loadingHistory && history.length === 0 && !historyError && (
+            <p className="text-slate-500 text-sm">加载中…</p>
+          )}
 
           <div className="grid gap-2">
             {history.map((file) => (

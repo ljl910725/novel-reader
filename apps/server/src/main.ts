@@ -2,6 +2,16 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
+// Prisma BigInt columns must not break JSON responses if a handler returns raw rows.
+if (!(BigInt.prototype as { toJSON?: () => unknown }).toJSON) {
+  Object.defineProperty(BigInt.prototype, 'toJSON', {
+    value(this: bigint): number {
+      return Number(this);
+    },
+    configurable: true,
+  });
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');

@@ -12,35 +12,69 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { PrismaService } from '../prisma/prisma.service';
 
+function safeFileSize(size: bigint | number | null | undefined): number {
+  if (size == null) return 0;
+  try {
+    return typeof size === 'bigint' ? Number(size) : Number(size) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function safeIsoDate(value: Date | null | undefined): string {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+    return new Date(0).toISOString();
+  }
+  return value.toISOString();
+}
+
+function serializeBook(
+  book: { id: string; title: string; author: string; bookType: string } | null | undefined,
+) {
+  if (!book?.id) return null;
+  return {
+    id: book.id,
+    title: book.title ?? '未知书名',
+    author: book.author ?? '未知',
+    bookType: book.bookType ?? 'SERVER_TXT',
+  };
+}
+
 function serializeUploadedFile(
   file: {
     id: string;
     filename: string;
     format: string;
-    fileSize: bigint;
+    fileSize: bigint | number;
     parseStatus: string;
     parseError: string | null;
     createdAt: Date;
     book?: { id: string; title: string; author: string; bookType: string } | null;
   },
 ) {
-  return {
-    id: file.id,
-    filename: file.filename,
-    format: file.format,
-    fileSize: Number(file.fileSize),
-    parseStatus: file.parseStatus,
-    parseError: file.parseError,
-    createdAt: file.createdAt.toISOString(),
-    book: file.book
-      ? {
-          id: file.book.id,
-          title: file.book.title,
-          author: file.book.author,
-          bookType: file.book.bookType,
-        }
-      : null,
-  };
+  try {
+    return {
+      id: file.id,
+      filename: file.filename ?? '未知文件',
+      format: file.format ?? 'TXT',
+      fileSize: safeFileSize(file.fileSize),
+      parseStatus: file.parseStatus ?? 'FAILED',
+      parseError: file.parseError ?? null,
+      createdAt: safeIsoDate(file.createdAt),
+      book: serializeBook(file.book),
+    };
+  } catch {
+    return {
+      id: file.id ?? 'unknown',
+      filename: file.filename ?? '未知文件',
+      format: 'TXT',
+      fileSize: 0,
+      parseStatus: 'FAILED' as const,
+      parseError: '记录数据异常，无法完整展示',
+      createdAt: new Date(0).toISOString(),
+      book: null,
+    };
+  }
 }
 
 @Injectable()
