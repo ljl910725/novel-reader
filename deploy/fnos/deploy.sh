@@ -41,8 +41,9 @@ require_cmd() {
 
 run_cmd() {
   log "RUN: $*"
-  if ! "$@"; then
-    local code=$?
+  "$@"
+  local code=$?
+  if [[ $code -ne 0 ]]; then
     die "命令失败 (exit $code): $*" "$code"
   fi
 }
@@ -54,6 +55,75 @@ docker_compose() {
     docker-compose "$@"
   else
     die "找不到 docker compose 或 docker-compose (PATH=$PATH)" 127
+  fi
+}
+
+has_ssh_key() {
+  # 尽量保守：只做本地存在性检测，不做网络连接测试
+  local dir="${HOME:-}/.ssh"
+  [[ -d "$dir" ]] || return 1
+
+  # 常见私钥文件名（不含 .pub）
+  local keys=(
+    "$dir/id_ed25519"
+    "$dir/id_rsa"
+    "$dir/id_ecdsa"
+    "$dir/id_dsa"
+  )
+  local k
+  for k in "${keys[@]}"; do
+    [[ -f "$k" ]] && [[ -s "$k" ]] && return 0
+  done
+
+  # 兼容自定义命名的 key（尽量避免误判：排除 .pub / known_hosts / config）
+  shopt -s nullglob
+  local candidates=("$dir"/*)
+  shopt -u nullglob
+  for k in "${candidates[@]}"; do
+    [[ -f "$k" ]] || continue
+    case "$k" in
+      *.pub|*/known_hosts|*/config) continue ;;
+    esac
+    [[ -s "$k" ]] && return 0
+  done
+
+  return 1
+}
+
+https_github_to_ssh() {
+  # 输入: https://github.com/owner/repo.git 或 https://github.com/owner/repo
+  # 输出: git@github.com:owner/repo.git
+  local url="$1"
+  url="${url#https://github.com/}"
+  url="${url%.git}"
+  echo "git@github.com:${url}.git"
+}
+
+maybe_switch_origin_to_ssh() {
+  # 仅在：
+  # - origin 是 GitHub HTTPS；且
+  # - (FORCE_GIT_SSH=1) 或者本地看起来有 SSH key
+  # 才自动切换
+  local force="${FORCE_GIT_SSH:-0}"
+
+  local origin_url
+  origin_url="$(git remote get-url origin 2>/dev/null || true)"
+  [[ -n "$origin_url" ]] || return 0
+
+  if [[ "$origin_url" =~ ^https://github\.com/.+/.+(\.git)?$ ]]; then
+    if [[ "$force" == "1" ]] || has_ssh_key; then
+      local ssh_url
+      ssh_url="$(https_github_to_ssh "$origin_url")"
+      if [[ "$origin_url" != "$ssh_url" ]]; then
+        log "检测到 GitHub HTTPS origin，尝试切换为 SSH 以避免 TLS/gnutls 握手失败："
+        log "  origin: $origin_url"
+        log "  ->     $ssh_url"
+        run_cmd git remote set-url origin "$ssh_url"
+      fi
+    else
+      log "检测到 GitHub HTTPS origin，但未发现可用 SSH key，跳过自动切换。"
+      log "如需强制切换，请设置环境变量 FORCE_GIT_SSH=1。"
+    fi
   fi
 }
 
@@ -85,6 +155,7 @@ if [[ "${DEPLOY_SKIP_PULL:-0}" != "1" ]] && [[ -d "$REPO_ROOT/.git" ]]; then
     BRANCH="$(git remote show origin 2>/dev/null | awk '/HEAD branch/ {print $NF}')"
     BRANCH="${BRANCH:-master}"
   fi
+  maybe_switch_origin_to_ssh
   log "git pull origin $BRANCH"
   run_cmd git fetch origin "$BRANCH"
   git checkout "$BRANCH" 2>/dev/null || run_cmd git checkout -B "$BRANCH" "origin/$BRANCH"
