@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import type { LegadoBookSource } from '@novel-reader/shared';
 import { parseLegadoImportPayload } from '@novel-reader/shared';
-import { DEMO_MOCK_SOURCE } from '@novel-reader/book-engine/demo';
+import { DEMO_MOCK_SOURCE } from '@/src/lib/demoSource';
 import { api } from '@/src/api';
 import { deviceStorage, type DeviceSource } from '@/src/lib/deviceStorage';
 import { localTestSources } from '@/src/lib/localEngine';

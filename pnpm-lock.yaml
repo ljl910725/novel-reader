@@ -78,9 +78,6 @@ importers:
       '@expo/metro-runtime':
         specifier: ~56.0.15
         version: 56.0.15(@expo/log-box@56.0.13)(expo@56.0.11)(react-native@0.85.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
-      '@novel-reader/book-engine':
-        specifier: workspace:*
-        version: link:../../packages/book-engine
       '@novel-reader/shared':
         specifier: workspace:*
         version: link:../../packages/shared

@@ -5,7 +5,7 @@ const { guestSearchMock, guestTestSourcesMock } = vi.hoisted(() => ({
   guestTestSourcesMock: vi.fn(),
 }));
 
-vi.mock('@/src/api', () => ({
+vi.mock('../api', () => ({
   api: {
     guestSearch: guestSearchMock,
     guestTestSources: guestTestSourcesMock,

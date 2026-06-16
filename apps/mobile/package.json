@@ -13,7 +13,6 @@
   "dependencies": {
     "@expo/log-box": "~56.0.13",
     "@expo/metro-runtime": "~56.0.15",
-    "@novel-reader/book-engine": "workspace:*",
     "@novel-reader/shared": "workspace:*",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "expo": "~56.0.11",
