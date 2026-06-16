@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const searchMock = vi.fn();
+const { guestSearchMock, guestTestSourcesMock } = vi.hoisted(() => ({
+  guestSearchMock: vi.fn(),
+  guestTestSourcesMock: vi.fn(),
+}));
 
-vi.mock('@novel-reader/book-engine', () => ({
-  BookEngine: vi.fn().mockImplementation(() => ({
-    search: searchMock,
-    getToc: vi.fn(),
-    getContent: vi.fn(),
-  })),
+vi.mock('@/src/api', () => ({
+  api: {
+    guestSearch: guestSearchMock,
+    guestTestSources: guestTestSourcesMock,
+  },
 }));
 
 import { localSearch, localTestSources, mapGuestSourceIds } from './localEngine';
@@ -24,23 +26,29 @@ const sampleSource: LegadoBookSource = {
 
 describe('localEngine', () => {
   beforeEach(() => {
-    searchMock.mockReset();
-    searchMock.mockResolvedValue([
+    guestSearchMock.mockReset();
+    guestTestSourcesMock.mockReset();
+    guestSearchMock.mockResolvedValue([
       {
         name: 'Book A',
         author: 'Author',
         bookUrl: 'https://example.com/book/1',
-        sourceId: 'https://example.com',
+        sourceId: 'guest-0',
         sourceName: 'Test',
       },
     ]);
+    guestTestSourcesMock.mockResolvedValue({
+      results: [{ id: 'src-1', name: 'Test', success: true, count: 1 }],
+      passed: 1,
+      failed: 0,
+    });
   });
 
-  it('searches locally and tags guest source ids', async () => {
+  it('searches via guest API', async () => {
     const raw = await localSearch('keyword', [sampleSource]);
+    expect(guestSearchMock).toHaveBeenCalledWith('keyword', [sampleSource]);
     expect(raw).toHaveLength(1);
     expect(raw[0].sourceId).toBe('guest-0');
-    expect(raw[0].sourceName).toBe('Test');
   });
 
   it('maps guest source ids to device ids', () => {
@@ -51,8 +59,9 @@ describe('localEngine', () => {
     expect(mapped[0].sourceId).toBe('device-abc');
   });
 
-  it('tests sources locally', async () => {
+  it('tests sources via guest API', async () => {
     const batch = await localTestSources([{ id: 'src-1', source: sampleSource }], '测试');
+    expect(guestTestSourcesMock).toHaveBeenCalled();
     expect(batch.passed).toBe(1);
     expect(batch.results[0].success).toBe(true);
   });
