@@ -75,4 +75,55 @@ describe('parseEpub', () => {
   it('rejects invalid zip buffers', async () => {
     await expect(parseEpub(Buffer.from('not-a-zip', 'utf-8'))).rejects.toThrow(/ZIP/);
   });
+
+  it('rejects HTML disguised as EPUB with a clear message', async () => {
+    const html = Buffer.from('<!DOCTYPE html><html><body>章节</body></html>', 'utf-8');
+    await expect(parseEpub(html)).rejects.toThrow(/HTML/);
+  });
+
+  it('rejects empty buffers', async () => {
+    await expect(parseEpub(Buffer.alloc(0))).rejects.toThrow(/空/);
+  });
+
+  it('accepts minimal valid EPUB zip buffer (PK\\x03\\x04)', async () => {
+    const buffer = await buildEpub({
+      mimetype: 'application/epub+zip',
+      'META-INF/container.xml': `<?xml version="1.0"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`,
+      'content.opf': baseOpf,
+      'ch1.xhtml':
+        '<?xml version="1.0"?><html><head><title>第一章</title></head><body><p>第一段</p></body></html>',
+      'ch2.xhtml':
+        '<?xml version="1.0"?><html><head><title>第二章</title></head><body><p>第二段</p></body></html>',
+    });
+
+    expect(buffer[0]).toBe(0x50);
+    expect(buffer[1]).toBe(0x4b);
+    expect(buffer[2]).toBe(0x03);
+    expect(buffer[3]).toBe(0x04);
+
+    const result = await parseEpub(buffer);
+    expect(result.chapters).toHaveLength(2);
+  });
+
+  it('rejects DRM-encrypted EPUB', async () => {
+    const buffer = await buildEpub({
+      'META-INF/container.xml': `<?xml version="1.0"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`,
+      'META-INF/encryption.xml': '<encryption xmlns="urn:oasis:names:tc:opendocument:xmlns:container"/>',
+      'content.opf': baseOpf,
+      'ch1.xhtml': '<html><body><p>x</p></body></html>',
+      'ch2.xhtml': '<html><body><p>y</p></body></html>',
+    });
+
+    await expect(parseEpub(buffer)).rejects.toThrow(/DRM/);
+  });
 });

@@ -1,20 +1,30 @@
 import type { ParsedBook } from '@novel-reader/shared';
 import JSZip from 'jszip';
 
-import type { FileBuffer } from './detect';
+import { isZipArchive, type FileBuffer } from './detect';
 
 type ManifestItem = { href: string; mediaType: string };
 
 export async function parseEpub(buffer: FileBuffer): Promise<ParsedBook> {
   const b = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
-  if (b.length < 4 || b[0] !== 0x50 || b[1] !== 0x4b) {
-    throw new Error('无效的 EPUB 文件（不是 ZIP 格式）');
+  assertEpubZipBuffer(b);
+
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(b);
+  } catch {
+    throw new Error('EPUB 压缩包损坏或无法解压，请检查文件完整性后重新上传');
   }
 
-  const zip = await JSZip.loadAsync(b);
   const paths = listZipPaths(zip);
   if (paths.length === 0) {
     throw new Error('EPUB 压缩包为空');
+  }
+
+  if (findZipPath(paths, 'meta-inf/encryption.xml')) {
+    throw new Error(
+      '该 EPUB 受 DRM 加密保护，无法解析。请使用无加密的 EPUB，或转为 TXT 后上传',
+    );
   }
 
   const containerPath = findZipPath(paths, 'meta-inf/container.xml');
@@ -88,6 +98,40 @@ export async function parseEpub(buffer: FileBuffer): Promise<ParsedBook> {
     meta: { title: stripXmlText(title), author: stripXmlText(author) },
     chapters,
   };
+}
+
+function assertEpubZipBuffer(b: Buffer): void {
+  if (b.length === 0) {
+    throw new Error('EPUB 文件为空或上传不完整，请重新上传');
+  }
+
+  if (!isZipArchive(b)) {
+    const head = b
+      .slice(0, Math.min(b.length, 64))
+      .toString('utf8')
+      .trimStart()
+      .toLowerCase();
+
+    if (
+      head.startsWith('<!doctype') ||
+      head.startsWith('<html') ||
+      head.startsWith('<?xml')
+    ) {
+      throw new Error(
+        '该文件内容是 HTML/网页而非 EPUB 压缩包。请改存为 .txt 上传，或从正规渠道下载标准 EPUB',
+      );
+    }
+
+    if (b[0] === 0x50 && b[1] === 0x4b) {
+      throw new Error(
+        '无效的 EPUB 文件（ZIP 文件头异常）。文件可能已损坏，请重新下载后上传',
+      );
+    }
+
+    throw new Error(
+      '无效的 EPUB 文件（不是 ZIP 格式）。文件可能损坏、未下载完整，或实为文本/HTML 却使用了 .epub 扩展名',
+    );
+  }
 }
 
 function listZipPaths(zip: JSZip): string[] {
