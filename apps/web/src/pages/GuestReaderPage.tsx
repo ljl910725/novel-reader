@@ -39,7 +39,8 @@ export function GuestReaderPage() {
     const ch = chapters[chapterIndex];
     if (!source?.legadoConfig || !ch.sourceChapterUrl) return;
     api.guestContent(source.legadoConfig, ch.sourceChapterUrl).then((r) => setContent(r.content));
-    guestStorage.saveProgress(shelfItem.id, chapterIndex, 0);
+    const percent = chapters.length > 0 ? ((chapterIndex + 1) / chapters.length) * 100 : 0;
+    guestStorage.saveProgress(shelfItem.id, chapterIndex, 0, { percent, chapterTitle: ch.title });
   }, [chapters, chapterIndex, shelfItem]);
 
   const saveTheme = (t: ReaderTheme) => {

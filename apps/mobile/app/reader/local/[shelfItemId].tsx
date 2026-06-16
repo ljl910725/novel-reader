@@ -61,7 +61,8 @@ export default function LocalReaderScreen() {
       if (!source || !ch.sourceChapterUrl) return;
       const r = await api.guestContent(source.legadoConfig, ch.sourceChapterUrl);
       setContent(r.content);
-      await deviceStorage.saveProgress(shelfItemId, chapterIndex);
+      const percent = chapters.length > 0 ? ((chapterIndex + 1) / chapters.length) * 100 : 0;
+      await deviceStorage.saveProgress(shelfItemId, chapterIndex, 0, { percent, chapterTitle: ch.title });
     })();
   }, [chapters, chapterIndex, shelfItemId]);
 

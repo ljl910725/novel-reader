@@ -21,7 +21,7 @@ export class ProgressController {
   save(
     @CurrentUser('sub') userId: string,
     @Param('bookId') bookId: string,
-    @Body() body: { chapterId?: string; chapterIndex?: number; scrollOffset?: number },
+    @Body() body: { chapterId?: string; chapterIndex?: number; percent?: number; scrollOffset?: number },
   ) {
     return this.progress.save(userId, bookId, body);
   }

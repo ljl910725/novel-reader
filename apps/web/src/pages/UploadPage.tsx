@@ -109,6 +109,29 @@ export function UploadPage({ user, canUpload, canLocal }: Props) {
     }
   };
 
+  const uploadCloudMany = async (files: File[]) => {
+    const list = files.filter(Boolean);
+    if (list.length === 0) return;
+    if (list.length === 1) return uploadCloud(list[0]);
+    if (!user) {
+      setMsg('云端上传需要登录');
+      return;
+    }
+    if (!canUpload) {
+      setMsg('当前账号无云端上传权限');
+      return;
+    }
+    try {
+      const r = await api.uploadFiles(list);
+      const duplicated = r.results.filter((x) => x.duplicate).length;
+      const uploaded = r.results.length - duplicated;
+      await loadHistory();
+      setMsg(`已提交 ${r.results.length} 个文件：新上传 ${uploaded} 个，重复 ${duplicated} 个（解析中…）`);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : '批量上传失败');
+    }
+  };
+
   const removeFile = async (id: string) => {
     if (!window.confirm('确定删除该上传记录？若已加入书架，关联书籍也会删除。')) return;
     try {
@@ -151,7 +174,13 @@ export function UploadPage({ user, canUpload, canLocal }: Props) {
       <section className="bg-white border rounded-xl p-4 grid gap-3">
         <h2 className="font-semibold">上传到云端（跨设备同步）</h2>
         <p className="text-sm text-slate-500">支持 TXT / EPUB，上限 50MB，需登录。解析完成后自动加入书架。</p>
-        <input type="file" accept=".txt,.epub" disabled={!user || !canUpload} onChange={(e) => e.target.files?.[0] && uploadCloud(e.target.files[0])} />
+        <input
+          type="file"
+          accept=".txt,.epub"
+          multiple
+          disabled={!user || !canUpload}
+          onChange={(e) => uploadCloudMany(Array.from(e.target.files ?? []))}
+        />
       </section>
 
       <section className="bg-white border rounded-xl p-4 grid gap-3">

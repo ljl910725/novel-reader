@@ -173,8 +173,11 @@ export const api = {
   search: (q: string) => request<Array<Record<string, unknown>>>(`/search?q=${encodeURIComponent(q)}`),
 
   shelf: () => request<Array<Record<string, unknown>>>('/shelf'),
+  shelfSorted: (sort: 'recentRead' | 'added' | 'name' = 'recentRead') =>
+    request<Array<Record<string, unknown>>>(`/shelf?sort=${encodeURIComponent(sort)}`),
   addToShelf: (body: Record<string, unknown>) =>
     request('/shelf', { method: 'POST', body: JSON.stringify(body) }),
+  removeFromShelf: (bookId: string) => request<{ ok: boolean }>(`/shelf/${bookId}`, { method: 'DELETE' }),
 
   getBook: (id: string) => request<Record<string, unknown>>(`/books/${id}`),
   getChapters: (id: string) => request<Array<{ id: string; title: string; index: number }>>(`/books/${id}/chapters`),
@@ -196,6 +199,14 @@ export const api = {
       body: fd,
       headers: {},
     });
+  },
+  uploadFiles: (files: File[]) => {
+    const fd = new FormData();
+    for (const f of files) fd.append('files', f);
+    return request<{ results: Array<{ fileId: string; parseStatus: string; duplicate?: boolean }> }>(
+      '/files/upload/batch',
+      { method: 'POST', body: fd, headers: {} },
+    );
   },
   listFiles: () => request<UploadedFileRecord[]>('/files'),
   fileStatus: (id: string) => request<UploadedFileRecord>(`/files/${id}/status`),

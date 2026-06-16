@@ -125,10 +125,12 @@ model ReadingProgress {
   chapterId    String?
   chapter      Chapter? @relation(fields: [chapterId], references: [id])
   chapterIndex Int      @default(0)
+  percent      Float    @default(0)
   scrollOffset Int      @default(0)
   updatedAt    DateTime @updatedAt
 
   @@unique([userId, bookId])
+  @@index([userId, updatedAt])
 }
 
 model Bookmark {

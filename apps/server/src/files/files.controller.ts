@@ -4,12 +4,13 @@ import {
   Get,
   Param,
   Post,
+  UploadedFiles,
   Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { RequireAnyPermission } from '../common/decorators/require-any-permission.decorator';
@@ -31,6 +32,22 @@ export class FilesController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.files.upload(userId, file);
+  }
+
+  @Post('upload/batch')
+  @RequirePermission('cloudUpload')
+  @UseInterceptors(FilesInterceptor('files', 20))
+  async uploadBatch(
+    @CurrentUser('sub') userId: string,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    const list = Array.isArray(files) ? files : [];
+    const results = [];
+    for (const f of list) {
+      // 顺序处理，避免瞬时高并发占用大量内存（每个 file.buffer 可能较大）
+      results.push(await this.files.upload(userId, f));
+    }
+    return { results };
   }
 
   @Get()

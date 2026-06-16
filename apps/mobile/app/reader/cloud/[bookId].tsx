@@ -24,12 +24,20 @@ export default function CloudReaderScreen() {
       setChapters(c);
       setLoading(false);
     });
+    api
+      .getProgress(bookId)
+      .then((p) => {
+        if (p?.chapterIndex != null) setChapterIndex(Number(p.chapterIndex));
+      })
+      .catch(() => {});
   }, [bookId]);
 
   useEffect(() => {
     const ch = chapters[chapterIndex];
     if (!ch) return;
     api.getChapterContent(ch.id).then((r) => setContent(r.content));
+    const percent = chapters.length > 0 ? ((chapterIndex + 1) / chapters.length) * 100 : 0;
+    api.saveProgress(bookId, { chapterId: ch.id, chapterIndex, percent, scrollOffset: 0 }).catch(() => {});
   }, [chapters, chapterIndex]);
 
   if (loading) {

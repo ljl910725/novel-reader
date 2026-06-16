@@ -18,6 +18,12 @@ type ShelfRow = DeviceShelfItem & {
   isCloud?: boolean;
   cloudBookId?: string;
   bookType?: string;
+  progress?: {
+    chapterIndex?: number;
+    percent?: number;
+    chapterTitle?: string | null;
+    updatedAt?: string | null;
+  } | null;
 };
 
 export default function ShelfScreen() {
@@ -26,18 +32,31 @@ export default function ShelfScreen() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [detail, setDetail] = useState<BookDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [sort, setSort] = useState<'recentRead' | 'added' | 'name'>('recentRead');
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const token = await getToken();
     setLoggedIn(!!token);
     const local = await deviceStorage.getShelf();
-    let rows: ShelfRow[] = local.map((s) => ({ ...s }));
+    const localProgressMap = new Map(
+      (
+        await Promise.all(
+          local.map(async (s) => [s.id, await deviceStorage.getProgress(s.id)] as const),
+        )
+      ).filter(Boolean),
+    );
+    let rows: ShelfRow[] = local.map((s) => ({
+      ...s,
+      progress: localProgressMap.get(s.id) ?? null,
+    }));
 
     if (token) {
       try {
-        const cloud = await api.shelf();
+        const cloud = await api.shelfSorted(sort);
         const cloudRows = cloud.map((item) => {
           const book = item.book as Record<string, unknown>;
+          const progress = item.progress as any;
           return {
             id: String(item.id),
             title: String(book.title),
@@ -50,6 +69,14 @@ export default function ShelfScreen() {
             isCloud: true,
             cloudBookId: String(book.id),
             bookType: book.bookType ? String(book.bookType) : undefined,
+            progress: progress
+              ? {
+                  chapterIndex: Number(progress.chapterIndex ?? 0),
+                  percent: typeof progress.percent === 'number' ? Number(progress.percent) : undefined,
+                  chapterTitle: progress.chapter?.title ? String(progress.chapter.title) : null,
+                  updatedAt: progress.updatedAt ? String(progress.updatedAt) : null,
+                }
+              : null,
           } satisfies ShelfRow;
         });
         rows = [...cloudRows, ...rows];
@@ -57,8 +84,22 @@ export default function ShelfScreen() {
         // 云端书架加载失败时仍显示本地
       }
     }
-    setItems(rows);
-  }, []);
+
+    const sorted = [...rows];
+    if (sort === 'name') {
+      sorted.sort((a, b) => String(a.title).localeCompare(String(b.title), 'zh-Hans-CN'));
+    } else if (sort === 'added') {
+      sorted.sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime());
+    } else {
+      sorted.sort((a, b) => {
+        const at = a.progress?.updatedAt ? new Date(String(a.progress.updatedAt)).getTime() : 0;
+        const bt = b.progress?.updatedAt ? new Date(String(b.progress.updatedAt)).getTime() : 0;
+        if (at !== bt) return bt - at;
+        return new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime();
+      });
+    }
+    setItems(sorted);
+  }, [sort]);
 
   useFocusEffect(
     useCallback(() => {
@@ -110,17 +151,23 @@ export default function ShelfScreen() {
     });
   };
 
-  const startReading = () => {
-    if (!detail) return;
-    const item = items.find(
-      (i) => i.cloudBookId === detail.id || i.id === detail.id,
-    );
+  const startReading = (item: ShelfRow) => {
     setDetail(null);
-    if (item?.isCloud && item.cloudBookId) {
+    if (item.isCloud && item.cloudBookId) {
       router.push(`/reader/cloud/${item.cloudBookId}`);
-    } else if (item) {
+    } else {
       router.push(`/reader/local/${item.id}`);
     }
+  };
+
+  const removeItem = async (item: ShelfRow) => {
+    if (item.isCloud && item.cloudBookId) {
+      await api.removeFromShelf(item.cloudBookId);
+    } else {
+      await deviceStorage.removeFromShelf(item.id);
+    }
+    setMenuOpenId(null);
+    load();
   };
 
   return (
@@ -134,17 +181,93 @@ export default function ShelfScreen() {
         contentContainerStyle={styles.list}
         ListEmptyComponent={<Text style={styles.empty}>书架为空，去搜索添加书籍吧</Text>}
         renderItem={({ item }) => (
-          <Pressable style={styles.card} onPress={() => openDetail(item)}>
+          <Pressable style={styles.card} onPress={() => startReading(item)}>
             <CoverThumb coverUrl={item.coverUrl} title={item.title} />
             <View style={styles.cardBody}>
-              <Text style={styles.title} numberOfLines={2}>
-                {item.title}
-              </Text>
+              <View style={styles.titleRow}>
+                <Text style={styles.title} numberOfLines={2}>
+                  {item.title}
+                </Text>
+                <Pressable
+                  style={styles.menuBtn}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setMenuOpenId((prev) => (prev === item.id ? null : item.id));
+                  }}
+                >
+                  <Text style={styles.menuText}>⋯</Text>
+                </Pressable>
+              </View>
               <Text style={styles.author} numberOfLines={1}>
                 {item.author}
               </Text>
-              <Text style={styles.badge}>{item.isCloud ? '云端' : '本机'}</Text>
+              {item.progress && (item.progress.chapterTitle || item.progress.chapterIndex != null) ? (
+                <Text style={styles.progressLine} numberOfLines={1}>
+                  {(item.progress.chapterTitle ??
+                    `第 ${(Number(item.progress.chapterIndex ?? 0) + 1).toString()} 章`) +
+                    (typeof item.progress.percent === 'number'
+                      ? ` · ${Math.round(item.progress.percent)}%`
+                      : '')}
+                </Text>
+              ) : (
+                <Text style={styles.badge}>{item.isCloud ? '云端' : '本机'}</Text>
+              )}
             </View>
+
+            {menuOpenId === item.id && (
+              <View style={styles.menu}>
+                <Pressable
+                  style={styles.menuItem}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    openDetail(item).finally(() => setMenuOpenId(null));
+                  }}
+                >
+                  <Text style={styles.menuItemText}>查看详情</Text>
+                </Pressable>
+                <View style={styles.menuSep} />
+                <Pressable
+                  style={styles.menuItem}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setSort('recentRead');
+                    setMenuOpenId(null);
+                  }}
+                >
+                  <Text style={styles.menuItemText}>排序：按最近阅读</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.menuItem}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setSort('added');
+                    setMenuOpenId(null);
+                  }}
+                >
+                  <Text style={styles.menuItemText}>排序：按添加时间</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.menuItem}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setSort('name');
+                    setMenuOpenId(null);
+                  }}
+                >
+                  <Text style={styles.menuItemText}>排序：按书名</Text>
+                </Pressable>
+                <View style={styles.menuSep} />
+                <Pressable
+                  style={styles.menuItem}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    removeItem(item).catch(() => {});
+                  }}
+                >
+                  <Text style={[styles.menuItemText, { color: colors.danger }]}>删除</Text>
+                </Pressable>
+              </View>
+            )}
           </Pressable>
         )}
       />
@@ -154,7 +277,16 @@ export default function ShelfScreen() {
           <ActivityIndicator color={colors.primary} />
         </View>
       )}
-      <BookDetailModal book={detail} onClose={() => setDetail(null)} onRead={startReading} />
+      <BookDetailModal
+        book={detail}
+        onClose={() => setDetail(null)}
+        onRead={() => {
+          const item = detail
+            ? items.find((i) => i.cloudBookId === detail.id || i.id === detail.id)
+            : null;
+          if (item) startReading(item);
+        }}
+      />
     </View>
   );
 }
@@ -171,11 +303,16 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: colors.border,
+    position: 'relative',
   },
   cardBody: { flex: 1, minWidth: 0 },
-  title: { fontSize: 17, fontWeight: '600', color: colors.text },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  title: { flex: 1, fontSize: 17, fontWeight: '600', color: colors.text },
+  menuBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+  menuText: { color: colors.muted, fontSize: 22, lineHeight: 22 },
   author: { fontSize: 14, color: colors.muted, marginTop: 4 },
   badge: { fontSize: 11, color: colors.primary, marginTop: 8, fontWeight: '600' },
+  progressLine: { fontSize: 12, color: colors.muted, marginTop: 8 },
   empty: { textAlign: 'center', color: colors.muted, marginTop: 40 },
   loadingOverlay: {
     ...StyleSheet.absoluteFill,
@@ -183,4 +320,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  menu: {
+    position: 'absolute',
+    right: 10,
+    top: 46,
+    width: 200,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: layout.radius,
+    overflow: 'hidden',
+    zIndex: 20,
+  },
+  menuItem: { paddingHorizontal: 12, paddingVertical: 10 },
+  menuItemText: { fontSize: 14, color: colors.text },
+  menuSep: { height: 1, backgroundColor: colors.border },
 });

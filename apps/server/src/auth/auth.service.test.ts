@@ -7,6 +7,7 @@ describe('auth schemas', () => {
       email: 'test@test.com',
       password: '123456',
       nickname: 'test',
+      code: '123456',
     });
     expect(r.success).toBe(true);
   });

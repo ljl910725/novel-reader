@@ -36,6 +36,9 @@ export interface DeviceProgress {
   shelfItemId: string;
   chapterIndex: number;
   scrollOffset: number;
+  percent?: number;
+  chapterTitle?: string;
+  updatedAt?: string;
 }
 
 async function read<T>(key: string, fallback: T): Promise<T> {
@@ -135,14 +138,31 @@ export const deviceStorage = {
     return row;
   },
 
+  async removeFromShelf(id: string) {
+    const shelf = await deviceStorage.getShelf();
+    await write(SHELF_KEY, shelf.filter((s) => s.id !== id));
+  },
+
   async getProgress(shelfItemId: string): Promise<DeviceProgress | null> {
     const all = await read<Record<string, DeviceProgress>>(PROGRESS_KEY, {});
     return all[shelfItemId] ?? null;
   },
 
-  async saveProgress(shelfItemId: string, chapterIndex: number, scrollOffset = 0) {
+  async saveProgress(
+    shelfItemId: string,
+    chapterIndex: number,
+    scrollOffset = 0,
+    extra?: { percent?: number; chapterTitle?: string },
+  ) {
     const all = await read<Record<string, DeviceProgress>>(PROGRESS_KEY, {});
-    all[shelfItemId] = { shelfItemId, chapterIndex, scrollOffset };
+    all[shelfItemId] = {
+      shelfItemId,
+      chapterIndex,
+      scrollOffset,
+      percent: extra?.percent,
+      chapterTitle: extra?.chapterTitle,
+      updatedAt: new Date().toISOString(),
+    };
     await write(PROGRESS_KEY, all);
   },
 

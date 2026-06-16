@@ -30,6 +30,9 @@ export interface GuestProgress {
   shelfItemId: string;
   chapterIndex: number;
   scrollOffset: number;
+  percent?: number;
+  chapterTitle?: string;
+  updatedAt?: string;
 }
 
 function read<T>(key: string, fallback: T): T {
@@ -117,9 +120,21 @@ export const guestStorage = {
     return all[shelfItemId] ?? null;
   },
 
-  saveProgress(shelfItemId: string, chapterIndex: number, scrollOffset = 0) {
+  saveProgress(
+    shelfItemId: string,
+    chapterIndex: number,
+    scrollOffset = 0,
+    extra?: { percent?: number; chapterTitle?: string },
+  ) {
     const all = read<Record<string, GuestProgress>>(PROGRESS_KEY, {});
-    all[shelfItemId] = { shelfItemId, chapterIndex, scrollOffset };
+    all[shelfItemId] = {
+      shelfItemId,
+      chapterIndex,
+      scrollOffset,
+      percent: extra?.percent,
+      chapterTitle: extra?.chapterTitle,
+      updatedAt: new Date().toISOString(),
+    };
     write(PROGRESS_KEY, all);
   },
 

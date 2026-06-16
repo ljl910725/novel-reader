@@ -147,8 +147,11 @@ export const api = {
   search: (q: string) => request<Array<Record<string, unknown>>>(`/search?q=${encodeURIComponent(q)}`),
 
   shelf: () => request<Array<Record<string, unknown>>>('/shelf'),
+  shelfSorted: (sort: 'recentRead' | 'added' | 'name' = 'recentRead') =>
+    request<Array<Record<string, unknown>>>(`/shelf?sort=${encodeURIComponent(sort)}`),
   addToShelf: (body: Record<string, unknown>) =>
     request('/shelf', { method: 'POST', body: JSON.stringify(body) }),
+  removeFromShelf: (bookId: string) => request<{ ok: boolean }>(`/shelf/${bookId}`, { method: 'DELETE' }),
 
   getBook: (id: string) =>
     request<{
@@ -174,6 +177,10 @@ export const api = {
     request<Array<{ id: string; title: string; index: number }>>(`/books/${bookId}/chapters`),
 
   getChapterContent: (id: string) => request<{ content: string }>(`/chapters/${id}/content`),
+
+  getProgress: (bookId: string) => request<Record<string, unknown> | null>(`/progress/${bookId}`),
+  saveProgress: (bookId: string, body: Record<string, unknown>) =>
+    request(`/progress/${bookId}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   listFiles: () => request<UploadedFileRecord[]>('/files'),
   fileStatus: (id: string) => request<UploadedFileRecord>(`/files/${id}/status`),

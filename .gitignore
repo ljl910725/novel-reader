@@ -11,6 +11,7 @@ uploads/*
 coverage
 playwright-report
 test-results
+*.tsbuildinfo
 apps/server/prisma/*.db
 apps/server/prisma/*.db-journal
 apps/desktop/src-tauri/target

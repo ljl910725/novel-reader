@@ -28,7 +28,8 @@ export function ReaderPage() {
     if (!ch) return;
     api.getChapterContent(ch.id).then((r) => setContent(r.content));
     if (bookId) {
-      api.saveProgress(bookId, { chapterId: ch.id, chapterIndex, scrollOffset: 0 });
+      const percent = chapters.length > 0 ? ((chapterIndex + 1) / chapters.length) * 100 : 0;
+      api.saveProgress(bookId, { chapterId: ch.id, chapterIndex, percent, scrollOffset: 0 });
     }
   }, [chapters, chapterIndex, bookId]);
 
